@@ -1,6 +1,10 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! True random number generator
 
-use crate::rcc;
+use crate::clocks::{phclk, Stm32f4Clocks};
 use kernel::hil;
 use kernel::hil::entropy::Continue;
 use kernel::platform::chip::ClockInterface;
@@ -54,12 +58,15 @@ pub struct Trng<'a> {
 }
 
 impl<'a> Trng<'a> {
-    pub const fn new(registers: StaticRef<RngRegisters>, rcc: &'a rcc::Rcc) -> Trng<'a> {
+    pub const fn new(
+        registers: StaticRef<RngRegisters>,
+        clocks: &'a dyn Stm32f4Clocks,
+    ) -> Trng<'a> {
         Trng {
-            registers: registers,
-            clock: RngClock(rcc::PeripheralClock::new(
-                rcc::PeripheralClockType::AHB2(rcc::HCLK2::RNG),
-                rcc,
+            registers,
+            clock: RngClock(phclk::PeripheralClock::new(
+                phclk::PeripheralClockType::AHB2(phclk::HCLK2::RNG),
+                clocks,
             )),
             client: OptionalCell::empty(),
         }
@@ -104,7 +111,7 @@ impl<'a> Trng<'a> {
     }
 }
 
-struct RngClock<'a>(rcc::PeripheralClock<'a>);
+struct RngClock<'a>(phclk::PeripheralClock<'a>);
 
 impl ClockInterface for RngClock<'_> {
     fn is_enabled(&self) -> bool {

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Tests the log storage interface in linear mode. For testing in circular mode, see
 //! log_test.rs.
 //!
@@ -21,6 +25,7 @@
 use capsules_core::virtualizers::virtual_alarm::{MuxAlarm, VirtualMuxAlarm};
 use capsules_extra::log;
 use core::cell::Cell;
+use core::ptr::addr_of_mut;
 use kernel::debug_verbose;
 use kernel::hil::flash;
 use kernel::hil::log::{LogRead, LogReadClient, LogWrite, LogWriteClient};
@@ -46,7 +51,7 @@ pub unsafe fn run(mux_alarm: &'static MuxAlarm<'static, Rtc>, flash_controller: 
     // Create actual log storage abstraction on top of flash.
     let log = static_init!(
         Log,
-        log::Log::new(&LINEAR_TEST_LOG, &flash_controller, pagebuffer, false)
+        log::Log::new(&LINEAR_TEST_LOG, flash_controller, pagebuffer, false)
     );
     flash::HasClient::set_client(flash_controller, log);
     kernel::deferred_call::DeferredCallClient::register(log);
@@ -60,7 +65,7 @@ pub unsafe fn run(mux_alarm: &'static MuxAlarm<'static, Rtc>, flash_controller: 
     // Create and run test for log storage.
     let test = static_init!(
         LogTest<VirtualMuxAlarm<'static, Rtc>>,
-        LogTest::new(log, &mut BUFFER, alarm, &TEST_OPS)
+        LogTest::new(log, &mut *addr_of_mut!(BUFFER), alarm, &TEST_OPS)
     );
     log.set_read_client(test);
     log.set_append_client(test);
@@ -159,7 +164,7 @@ impl<A: 'static + Alarm<'static>> LogTest<A> {
                 }
 
                 match self.log.read(buffer, buffer.len()) {
-                    Ok(_) => debug_verbose!("Dispatched asynchronous read operation."),
+                    Ok(()) => debug_verbose!("Dispatched asynchronous read operation."),
                     Err((return_code, buffer)) => {
                         self.buffer.replace(buffer);
                         match return_code {

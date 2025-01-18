@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Provides userspace with access to air quality sensors.
 //!
 //! Usage
@@ -5,7 +9,7 @@
 //!
 //! You need a device that provides the `hil::sensors::AirQualityDriver` trait.
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use kernel::static_init;
 //!
 //! let grant_cap = create_capability!(capabilities::MemoryAllocationCapability);
@@ -20,7 +24,6 @@
 //! ```
 
 use core::cell::Cell;
-use core::convert::TryFrom;
 use kernel::grant::{AllowRoCount, AllowRwCount, Grant, UpcallCount};
 use kernel::hil;
 use kernel::syscall::{CommandReturn, SyscallDriver};
@@ -30,17 +33,12 @@ use kernel::{ErrorCode, ProcessId};
 use capsules_core::driver;
 pub const DRIVER_NUM: usize = driver::NUM::AirQuality as usize;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Default)]
 enum Operation {
+    #[default]
     None,
     CO2,
     TVOC,
-}
-
-impl Default for Operation {
-    fn default() -> Self {
-        Operation::None
-    }
 }
 
 #[derive(Default)]
@@ -60,7 +58,7 @@ impl<'a> AirQualitySensor<'a> {
         grant: Grant<App, UpcallCount<1>, AllowRoCount<0>, AllowRwCount<0>>,
     ) -> AirQualitySensor<'a> {
         AirQualitySensor {
-            driver: driver,
+            driver,
             apps: grant,
             busy: Cell::new(false),
         }

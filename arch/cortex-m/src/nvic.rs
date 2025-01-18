@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Cortex-M NVIC
 //!
 //! Most NVIC configuration is in the NVIC registers:
@@ -29,11 +33,11 @@ macro_rules! interrupt_mask {
         let mut low_interrupt: u128 = 0;
         $(
             if ($interrupt < 128) {
-                low_interrupt = low_interrupt | (1 << $interrupt) as u128
+                low_interrupt |= (1 << $interrupt) as u128
             }
             else
             {
-                high_interrupt = high_interrupt | (1 << ($interrupt-128)) as u128
+                high_interrupt |= (1 << ($interrupt-128)) as u128
             }
         );+
         (high_interrupt, low_interrupt)

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use kernel::utilities::registers::interfaces::{ReadWriteable, Readable, Writeable};
 use kernel::utilities::registers::{register_bitfields, register_structs, FieldValue, ReadWrite};
 use kernel::utilities::StaticRef;
@@ -309,7 +313,7 @@ impl Resets {
         if peripherals.len() > 0 {
             let mut value: FieldValue<u32, RESET::Register> = peripherals[0].get_reset_field_set();
             for peripheral in peripherals {
-                value = value + peripheral.get_reset_field_set();
+                value += peripheral.get_reset_field_set();
             }
             self.registers.reset.modify(value);
         }
@@ -320,7 +324,7 @@ impl Resets {
             let mut value: FieldValue<u32, RESET::Register> =
                 peripherals[0].get_reset_field_clear();
             for peripheral in peripherals {
-                value = value + peripheral.get_reset_field_clear();
+                value += peripheral.get_reset_field_clear();
             }
             self.registers.reset.modify(value);
 
@@ -328,7 +332,7 @@ impl Resets {
                 let mut value_done: FieldValue<u32, RESET_DONE::Register> =
                     peripherals[0].get_reset_done_field_set();
                 for peripheral in peripherals {
-                    value_done = value_done + peripheral.get_reset_done_field_set();
+                    value_done += peripheral.get_reset_done_field_set();
                 }
                 while !self.registers.reset_done.matches_all(value_done) {}
             }

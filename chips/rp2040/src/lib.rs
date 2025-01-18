@@ -1,13 +1,21 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 #![no_std]
 
 pub mod adc;
 pub mod chip;
 pub mod clocks;
+mod deferred_calls;
 pub mod gpio;
 pub mod i2c;
 pub mod interrupts;
+pub mod pio;
+pub mod pio_pwm;
 pub mod pwm;
 pub mod resets;
+pub mod rtc;
 pub mod spi;
 pub mod sysinfo;
 pub mod test;
@@ -17,9 +25,7 @@ pub mod usb;
 pub mod watchdog;
 pub mod xosc;
 
-use cortexm0p::{
-    self, initialize_ram_jump_to_main, unhandled_interrupt, CortexM0P, CortexMVariant,
-};
+use cortexm0p::{initialize_ram_jump_to_main, unhandled_interrupt, CortexM0P, CortexMVariant};
 
 extern "C" {
     // _estack is not really a function, but it makes the types work

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Interface for USB HID (Human Interface Device) class
 
 use crate::ErrorCode;
@@ -39,14 +43,6 @@ pub trait Client<'a, T: UsbHidType> {
         buffer: &'static mut T,
         endpoint: usize,
     );
-
-    /// Called when checking if we can start a new receive operation.
-    /// Should return true if we are ready to receive and not currently
-    /// in the process of receiving anything. That is if we are currently
-    /// idle.
-    /// If there is an outstanding call to receive, a callback already
-    /// waiting to be called then this will return false.
-    fn can_receive(&'a self) -> bool;
 }
 
 pub trait UsbHid<'a, T: UsbHidType> {

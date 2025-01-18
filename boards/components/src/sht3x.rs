@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component for the SHT3x sensor.
 //!
 //! I2C Interface
@@ -17,15 +21,16 @@ use capsules_core::virtualizers::virtual_i2c::{I2CDevice, MuxI2C};
 use capsules_extra::sht3x::SHT3x;
 use core::mem::MaybeUninit;
 use kernel::component::Component;
+use kernel::hil::i2c;
 use kernel::hil::time::Alarm;
 
 // Setup static space for the objects.
 #[macro_export]
 macro_rules! sht3x_component_static {
-    ($A:ty $(,)?) => {{
+    ($A:ty, $I:ty $(,)?) => {{
         let buffer = kernel::static_buf!([u8; 6]);
         let i2c_device =
-            kernel::static_buf!(capsules_core::virtualizers::virtual_i2c::I2CDevice<'static>);
+            kernel::static_buf!(capsules_core::virtualizers::virtual_i2c::I2CDevice<'static, $I>);
         let sht3x_alarm = kernel::static_buf!(
             capsules_core::virtualizers::virtual_alarm::VirtualMuxAlarm<'static, $A>
         );
@@ -33,6 +38,7 @@ macro_rules! sht3x_component_static {
             capsules_extra::sht3x::SHT3x<
                 'static,
                 capsules_core::virtualizers::virtual_alarm::VirtualMuxAlarm<'static, $A>,
+                capsules_core::virtualizers::virtual_i2c::I2CDevice<'static, $I>,
             >
         );
 
@@ -40,18 +46,20 @@ macro_rules! sht3x_component_static {
     };};
 }
 
-pub struct SHT3xComponent<A: 'static + Alarm<'static>> {
-    i2c_mux: &'static MuxI2C<'static>,
+pub type SHT3xComponentType<A, I> = capsules_extra::sht3x::SHT3x<'static, A, I>;
+
+pub struct SHT3xComponent<A: 'static + Alarm<'static>, I: 'static + i2c::I2CMaster<'static>> {
+    i2c_mux: &'static MuxI2C<'static, I>,
     i2c_address: u8,
     alarm_mux: &'static MuxAlarm<'static, A>,
 }
 
-impl<A: 'static + Alarm<'static>> SHT3xComponent<A> {
+impl<A: 'static + Alarm<'static>, I: 'static + i2c::I2CMaster<'static>> SHT3xComponent<A, I> {
     pub fn new(
-        i2c_mux: &'static MuxI2C<'static>,
+        i2c_mux: &'static MuxI2C<'static, I>,
         i2c_address: u8,
         alarm_mux: &'static MuxAlarm<'static, A>,
-    ) -> SHT3xComponent<A> {
+    ) -> SHT3xComponent<A, I> {
         SHT3xComponent {
             i2c_mux,
             i2c_address,
@@ -60,14 +68,18 @@ impl<A: 'static + Alarm<'static>> SHT3xComponent<A> {
     }
 }
 
-impl<A: 'static + Alarm<'static>> Component for SHT3xComponent<A> {
+impl<A: 'static + Alarm<'static>, I: 'static + i2c::I2CMaster<'static>> Component
+    for SHT3xComponent<A, I>
+{
     type StaticInput = (
         &'static mut MaybeUninit<VirtualMuxAlarm<'static, A>>,
-        &'static mut MaybeUninit<I2CDevice<'static>>,
-        &'static mut MaybeUninit<SHT3x<'static, VirtualMuxAlarm<'static, A>>>,
+        &'static mut MaybeUninit<I2CDevice<'static, I>>,
+        &'static mut MaybeUninit<
+            SHT3x<'static, VirtualMuxAlarm<'static, A>, I2CDevice<'static, I>>,
+        >,
         &'static mut MaybeUninit<[u8; 6]>,
     );
-    type Output = &'static SHT3x<'static, VirtualMuxAlarm<'static, A>>;
+    type Output = &'static SHT3x<'static, VirtualMuxAlarm<'static, A>, I2CDevice<'static, I>>;
 
     fn finalize(self, static_buffer: Self::StaticInput) -> Self::Output {
         let sht3x_i2c = static_buffer

@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+
+# Licensed under the Apache License, Version 2.0 or the MIT License.
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+# Copyright Tock Contributors 2023.
 #
 # usage: svd2regs.py [-h] [--group] (--mcu VENDOR MCU | --svd [SVD])
 #                    [--save FILE] [--fmt ['ARG ..']] [--path PATH]
@@ -103,6 +107,7 @@ const {name}_BASE: StaticRef<{title}Registers> =
 
     @staticmethod
     def fields(base, peripheral):
+        assert peripheral.base_address != 0, "Cannot create a `StaticRef` to address 0"
         return {
             "name": peripheral.name,
             "title": base.title(),

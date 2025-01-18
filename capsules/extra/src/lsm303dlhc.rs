@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! SyscallDriver for the LSM303DLHC 3D accelerometer and 3D magnetometer sensor.
 //!
 //! May be used with NineDof and Temperature
@@ -11,7 +15,7 @@
 //! Usage
 //! -----
 //!
-//! ```rust
+//! ```rust,ignore
 //! let mux_i2c = components::i2c::I2CMuxComponent::new(&stm32f3xx::i2c::I2C1)
 //!     .finalize(components::i2c_mux_component_helper!());
 //!
@@ -31,7 +35,7 @@
 //!
 //! NideDof Example
 //!
-//! ```rust
+//! ```rust,ignore
 //! let grant_cap = create_capability!(capabilities::MemoryAllocationCapability);
 //! let grant_ninedof = board_kernel.create_grant(&grant_cap);
 //!
@@ -54,7 +58,7 @@
 //!
 //! Temperature Example
 //!
-//! ```rust
+//! ```rust,ignore
 //! let grant_cap = create_capability!(capabilities::MemoryAllocationCapability);
 //! let grant_temp = board_kernel.create_grant(&grant_cap);
 //!
@@ -134,10 +138,10 @@ enum State {
     ReadMagnetometerXYZ,
 }
 
-pub struct Lsm303dlhcI2C<'a> {
+pub struct Lsm303dlhcI2C<'a, I: i2c::I2CDevice> {
     config_in_progress: Cell<bool>,
-    i2c_accelerometer: &'a dyn i2c::I2CDevice,
-    i2c_magnetometer: &'a dyn i2c::I2CDevice,
+    i2c_accelerometer: &'a I,
+    i2c_magnetometer: &'a I,
     state: Cell<State>,
     accel_scale: Cell<Lsm303Scale>,
     mag_range: Cell<Lsm303Range>,
@@ -156,18 +160,18 @@ pub struct Lsm303dlhcI2C<'a> {
 #[derive(Default)]
 pub struct App {}
 
-impl<'a> Lsm303dlhcI2C<'a> {
+impl<'a, I: i2c::I2CDevice> Lsm303dlhcI2C<'a, I> {
     pub fn new(
-        i2c_accelerometer: &'a dyn i2c::I2CDevice,
-        i2c_magnetometer: &'a dyn i2c::I2CDevice,
+        i2c_accelerometer: &'a I,
+        i2c_magnetometer: &'a I,
         buffer: &'static mut [u8],
         grant: Grant<App, UpcallCount<1>, AllowRoCount<0>, AllowRwCount<0>>,
-    ) -> Lsm303dlhcI2C<'a> {
+    ) -> Lsm303dlhcI2C<'a, I> {
         // setup and return struct
         Lsm303dlhcI2C {
             config_in_progress: Cell::new(false),
-            i2c_accelerometer: i2c_accelerometer,
-            i2c_magnetometer: i2c_magnetometer,
+            i2c_accelerometer,
+            i2c_magnetometer,
             state: Cell::new(State::Idle),
             accel_scale: Cell::new(Lsm303Scale::Scale2G),
             mag_range: Cell::new(Lsm303Range::Range1G),
@@ -394,20 +398,16 @@ impl<'a> Lsm303dlhcI2C<'a> {
     }
 }
 
-impl i2c::I2CClient for Lsm303dlhcI2C<'_> {
+impl<I: i2c::I2CDevice> i2c::I2CClient for Lsm303dlhcI2C<'_, I> {
     fn command_complete(&self, buffer: &'static mut [u8], status: Result<(), i2c::Error>) {
         match self.state.get() {
             State::IsPresent => {
-                let present = if status == Ok(()) && buffer[0] == 60 {
-                    true
-                } else {
-                    false
-                };
+                let present = status.is_ok() && buffer[0] == 60;
 
                 self.current_process.map(|process_id| {
-                    let _ = self.apps.enter(*process_id, |_grant, upcalls| {
+                    let _ = self.apps.enter(process_id, |_grant, upcalls| {
                         upcalls
-                            .schedule_upcall(0, (if present { 1 } else { 0 }, 0, 0))
+                            .schedule_upcall(0, (usize::from(present), 0, 0))
                             .ok();
                     });
                 });
@@ -420,9 +420,9 @@ impl i2c::I2CClient for Lsm303dlhcI2C<'_> {
                 let set_power = status == Ok(());
 
                 self.current_process.map(|process_id| {
-                    let _ = self.apps.enter(*process_id, |_grant, upcalls| {
+                    let _ = self.apps.enter(process_id, |_grant, upcalls| {
                         upcalls
-                            .schedule_upcall(0, (if set_power { 1 } else { 0 }, 0, 0))
+                            .schedule_upcall(0, (usize::from(set_power), 0, 0))
                             .ok();
                     });
                 });
@@ -441,12 +441,9 @@ impl i2c::I2CClient for Lsm303dlhcI2C<'_> {
                 let set_scale_and_resolution = status == Ok(());
 
                 self.current_process.map(|process_id| {
-                    let _ = self.apps.enter(*process_id, |_grant, upcalls| {
+                    let _ = self.apps.enter(process_id, |_grant, upcalls| {
                         upcalls
-                            .schedule_upcall(
-                                0,
-                                (if set_scale_and_resolution { 1 } else { 0 }, 0, 0),
-                            )
+                            .schedule_upcall(0, (usize::from(set_scale_and_resolution), 0, 0))
                             .ok();
                     });
                 });
@@ -498,7 +495,7 @@ impl i2c::I2CClient for Lsm303dlhcI2C<'_> {
                 };
 
                 self.current_process.map(|process_id| {
-                    let _ = self.apps.enter(*process_id, |_grant, upcalls| {
+                    let _ = self.apps.enter(process_id, |_grant, upcalls| {
                         if values {
                             upcalls.schedule_upcall(0, (x, y, z)).ok();
                         } else {
@@ -515,19 +512,11 @@ impl i2c::I2CClient for Lsm303dlhcI2C<'_> {
                 let set_temperature_and_magneto_data_rate = status == Ok(());
 
                 self.current_process.map(|process_id| {
-                    let _ = self.apps.enter(*process_id, |_grant, upcalls| {
+                    let _ = self.apps.enter(process_id, |_grant, upcalls| {
                         upcalls
                             .schedule_upcall(
                                 0,
-                                (
-                                    if set_temperature_and_magneto_data_rate {
-                                        1
-                                    } else {
-                                        0
-                                    },
-                                    0,
-                                    0,
-                                ),
+                                (usize::from(set_temperature_and_magneto_data_rate), 0, 0),
                             )
                             .ok();
                     });
@@ -546,9 +535,9 @@ impl i2c::I2CClient for Lsm303dlhcI2C<'_> {
                 let set_range = status == Ok(());
 
                 self.current_process.map(|process_id| {
-                    let _ = self.apps.enter(*process_id, |_grant, upcalls| {
+                    let _ = self.apps.enter(process_id, |_grant, upcalls| {
                         upcalls
-                            .schedule_upcall(0, (if set_range { 1 } else { 0 }, 0, 0))
+                            .schedule_upcall(0, (usize::from(set_range), 0, 0))
                             .ok();
                     });
                 });
@@ -573,7 +562,7 @@ impl i2c::I2CClient for Lsm303dlhcI2C<'_> {
                 });
 
                 self.current_process.map(|process_id| {
-                    let _ = self.apps.enter(*process_id, |_grant, upcalls| {
+                    let _ = self.apps.enter(process_id, |_grant, upcalls| {
                         if let Ok(temp) = values {
                             upcalls.schedule_upcall(0, (temp as usize, 0, 0)).ok();
                         } else {
@@ -615,7 +604,7 @@ impl i2c::I2CClient for Lsm303dlhcI2C<'_> {
                 };
 
                 self.current_process.map(|process_id| {
-                    let _ = self.apps.enter(*process_id, |_grant, upcalls| {
+                    let _ = self.apps.enter(process_id, |_grant, upcalls| {
                         if values {
                             upcalls.schedule_upcall(0, (x, y, z)).ok();
                         } else {
@@ -637,7 +626,7 @@ impl i2c::I2CClient for Lsm303dlhcI2C<'_> {
     }
 }
 
-impl SyscallDriver for Lsm303dlhcI2C<'_> {
+impl<I: i2c::I2CDevice> SyscallDriver for Lsm303dlhcI2C<'_, I> {
     fn command(
         &self,
         command_num: usize,
@@ -655,7 +644,7 @@ impl SyscallDriver for Lsm303dlhcI2C<'_> {
         // some (alive) process
         let match_or_empty_or_nonexistant = self.current_process.map_or(true, |current_process| {
             self.apps
-                .enter(*current_process, |_, _| current_process == &process_id)
+                .enter(current_process, |_, _| current_process == process_id)
                 .unwrap_or(true)
         });
 
@@ -681,8 +670,7 @@ impl SyscallDriver for Lsm303dlhcI2C<'_> {
             2 => {
                 if self.state.get() == State::Idle {
                     if let Some(data_rate) = Lsm303AccelDataRate::from_usize(data1) {
-                        match self.set_power_mode(data_rate, if data2 != 0 { true } else { false })
-                        {
+                        match self.set_power_mode(data_rate, data2 != 0) {
                             Ok(()) => CommandReturn::success(),
                             Err(error) => CommandReturn::failure(error),
                         }
@@ -697,9 +685,7 @@ impl SyscallDriver for Lsm303dlhcI2C<'_> {
             3 => {
                 if self.state.get() == State::Idle {
                     if let Some(scale) = Lsm303Scale::from_usize(data1) {
-                        match self
-                            .set_scale_and_resolution(scale, if data2 != 0 { true } else { false })
-                        {
+                        match self.set_scale_and_resolution(scale, data2 != 0) {
                             Ok(()) => CommandReturn::success(),
                             Err(error) => CommandReturn::failure(error),
                         }
@@ -714,10 +700,7 @@ impl SyscallDriver for Lsm303dlhcI2C<'_> {
             4 => {
                 if self.state.get() == State::Idle {
                     if let Some(data_rate) = Lsm303MagnetoDataRate::from_usize(data1) {
-                        match self.set_temperature_and_magneto_data_rate(
-                            if data2 != 0 { true } else { false },
-                            data_rate,
-                        ) {
+                        match self.set_temperature_and_magneto_data_rate(data2 != 0, data_rate) {
                             Ok(()) => CommandReturn::success(),
                             Err(error) => CommandReturn::failure(error),
                         }
@@ -753,7 +736,7 @@ impl SyscallDriver for Lsm303dlhcI2C<'_> {
     }
 }
 
-impl<'a> sensors::NineDof<'a> for Lsm303dlhcI2C<'a> {
+impl<'a, I: i2c::I2CDevice> sensors::NineDof<'a> for Lsm303dlhcI2C<'a, I> {
     fn set_client(&self, nine_dof_client: &'a dyn sensors::NineDofClient) {
         self.nine_dof_client.replace(nine_dof_client);
     }
@@ -767,7 +750,7 @@ impl<'a> sensors::NineDof<'a> for Lsm303dlhcI2C<'a> {
     }
 }
 
-impl<'a> sensors::TemperatureDriver<'a> for Lsm303dlhcI2C<'a> {
+impl<'a, I: i2c::I2CDevice> sensors::TemperatureDriver<'a> for Lsm303dlhcI2C<'a, I> {
     fn set_client(&self, temperature_client: &'a dyn sensors::TemperatureClient) {
         self.temperature_client.replace(temperature_client);
     }

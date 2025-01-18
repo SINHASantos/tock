@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Implementation of a single hardware timer.
 //!
 //! - Author: Amit Levy <levya@cs.stanford.edu>
@@ -171,7 +175,7 @@ pub struct Ast<'a> {
     callback: OptionalCell<&'a dyn time::AlarmClient>,
 }
 
-impl<'a> Ast<'a> {
+impl Ast<'_> {
     pub const fn new() -> Self {
         Self {
             registers: AST_ADDRESS,
@@ -207,7 +211,7 @@ enum Clock {
     Clock1K = 4,
 }
 
-impl<'a> Ast<'a> {
+impl Ast<'_> {
     fn clock_busy(&self) -> bool {
         self.registers.sr.is_set(Status::CLKBUSY)
     }
@@ -257,7 +261,7 @@ impl<'a> Ast<'a> {
     }
 
     fn is_enabled(&self) -> bool {
-        let regs: &AstRegisters = &*self.registers;
+        let regs: &AstRegisters = &self.registers;
         while self.busy() {}
         regs.cr.is_set(Control::EN)
     }
@@ -294,7 +298,7 @@ impl<'a> Ast<'a> {
     }
 
     fn set_counter(&self, val: u32) {
-        let regs: &AstRegisters = &*self.registers;
+        let regs: &AstRegisters = &self.registers;
         while self.busy() {}
         regs.cv.set(val);
     }
@@ -350,7 +354,7 @@ impl<'a> time::Alarm<'a> for Ast<'a> {
         if !now.within_range(reference, expire) {
             // We have already passed when: just fire ASAP
             // Note this will also trigger the increment below
-            expire = Self::Ticks::from(now);
+            expire = now;
         }
 
         // Firing is too close in the future, delay it a bit

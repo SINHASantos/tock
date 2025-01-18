@@ -1,9 +1,13 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Provides userspace access to the analog comparators on a board.
 //!
 //! Usage
 //! -----
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use kernel::static_init;
 //!
 //! let ac_channels = static_init!(
@@ -114,7 +118,7 @@ impl<'a, A: hil::analog_comparator::AnalogComparator<'a>> SyscallDriver
     ///
     /// ### `command_num`
     ///
-    /// - `0`: Driver check.
+    /// - `0`: Driver existence check.
     /// - `1`: Perform a simple comparison.
     ///        Input x chooses the desired comparator ACx (e.g. 0 or 1 for
     ///        hail, 0-3 for imix)
@@ -124,6 +128,7 @@ impl<'a, A: hil::analog_comparator::AnalogComparator<'a>> SyscallDriver
     /// - `3`: Stop interrupt-based comparisons.
     ///        Input x chooses the desired comparator ACx (e.g. 0 or 1 for
     ///        hail, 0-3 for imix)
+    /// - `4`: Get number of channels.
     fn command(
         &self,
         command_num: usize,
@@ -132,14 +137,14 @@ impl<'a, A: hil::analog_comparator::AnalogComparator<'a>> SyscallDriver
         processid: ProcessId,
     ) -> CommandReturn {
         if command_num == 0 {
-            // Handle this first as it should be returned unconditionally.
-            return CommandReturn::success_u32(self.channels.len() as u32);
+            // Handle unconditional driver existence check.
+            return CommandReturn::success();
         }
 
         // Check if this driver is free, or already dedicated to this process.
         let match_or_empty_or_nonexistant = self.current_process.map_or(true, |current_process| {
             self.grants
-                .enter(*current_process, |_, _| current_process == &processid)
+                .enter(current_process, |_, _| current_process == processid)
                 .unwrap_or(true)
         });
         if match_or_empty_or_nonexistant {
@@ -160,6 +165,8 @@ impl<'a, A: hil::analog_comparator::AnalogComparator<'a>> SyscallDriver
 
             3 => self.stop_comparing(channel).into(),
 
+            4 => CommandReturn::success_u32(self.channels.len() as u32),
+
             _ => CommandReturn::failure(ErrorCode::NOSUPPORT),
         }
     }
@@ -175,7 +182,7 @@ impl<'a, A: hil::analog_comparator::AnalogComparator<'a>> hil::analog_comparator
     /// Upcall to userland, signaling the application
     fn fired(&self, channel: usize) {
         self.current_process.map(|processid| {
-            let _ = self.grants.enter(*processid, |_app, upcalls| {
+            let _ = self.grants.enter(processid, |_app, upcalls| {
                 upcalls.schedule_upcall(0, (channel, 0, 0)).ok();
             });
         });

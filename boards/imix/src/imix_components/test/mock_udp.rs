@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component to test in kernel udp
 
 // Author: Hudson Ayers <hayers@stanford.edu>
@@ -127,7 +131,7 @@ impl Component for MockUDPComponent {
             udp_send,
             udp_recv,
             self.bound_port_table,
-            kernel::utilities::leasable_buffer::LeasableMutableBuffer::new(
+            kernel::utilities::leasable_buffer::SubSliceMut::new(
                 self.udp_payload.take().expect("missing payload"),
             ),
             self.dst_port,

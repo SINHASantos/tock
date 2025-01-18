@@ -1,7 +1,11 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Universal Serial Bus Device with EasyDMA (USBD)
 
 use core::cell::Cell;
-use cortexm4::support::atomic;
+use cortexm4f::support::atomic;
 use kernel::hil;
 use kernel::hil::usb::TransferType;
 use kernel::utilities::cells::{OptionalCell, VolatileCell};
@@ -19,31 +23,31 @@ use crate::power;
 // replaced with better error handling.
 macro_rules! debug_events {
     [ $( $arg:expr ),+ ] => {
-        {} // debug!($( $arg ),+)
+        {} // kernel::debug!($( $arg ),+)
     };
 }
 
 macro_rules! debug_tasks {
     [ $( $arg:expr ),+ ] => {
-        {} // debug!($( $arg ),+)
+        {} // kernel::debug!($( $arg ),+)
     };
 }
 
 macro_rules! debug_packets {
     [ $( $arg:expr ),+ ] => {
-        {} // debug!($( $arg ),+)
+        {} // kernel::debug!($( $arg ),+)
     };
 }
 
 macro_rules! debug_info {
     [ $( $arg:expr ),+ ] => {
-        {} // debug!($( $arg ),+)
+        {} // kernel::debug!($( $arg ),+)
     };
 }
 
 macro_rules! internal_warn {
     [ $( $arg:expr ),+ ] => {
-        {} // debug!($( $arg ),+)
+        {} // kernel::debug!($( $arg ),+)
     };
 }
 
@@ -322,7 +326,7 @@ mod detail {
 
     impl<'a> EndpointRegisters<'a> {
         pub fn set_buffer(&self, slice: &'a [VolatileCell<u8>]) {
-            self.ptr.set(slice.as_ptr() as *const u8);
+            self.ptr.set(slice.as_ptr().cast::<u8>());
             self.maxcnt.write(Count::MAXCNT.val(slice.len() as u32));
         }
     }
@@ -603,7 +607,9 @@ register_bitfields! [u32,
             REVA = 0,
             REVB = 1,
             REVC = 2,
-            REVD = 3
+            REVD = 3,
+            REVE = 4,
+            REVF = 5,
         ]
     ]
 ];
@@ -739,6 +745,15 @@ impl<'a> Usbd<'a> {
         self.power.set(power);
     }
 
+    // ERRATA
+    //
+    // There are known issues with nRF52840 USB hardware, and we check if
+    // specific errata apply given different versions of the chip.
+    //
+    // Reference
+    // https://github.com/NordicSemiconductor/nrfx/blob/master/mdk/nrf52_erratas.h
+    // for how the different errata apply.
+
     fn has_errata_166(&self) -> bool {
         true
     }
@@ -754,7 +769,9 @@ impl<'a> Usbd<'a> {
             && match CHIPINFO_BASE.chip_revision.read_as_enum(ChipRevision::REV) {
                 Some(ChipRevision::REV::Value::REVB)
                 | Some(ChipRevision::REV::Value::REVC)
-                | Some(ChipRevision::REV::Value::REVD) => true,
+                | Some(ChipRevision::REV::Value::REVD)
+                | Some(ChipRevision::REV::Value::REVE)
+                | Some(ChipRevision::REV::Value::REVF) => true,
                 Some(ChipRevision::REV::Value::REVA) | None => false,
             }
     }
@@ -912,7 +929,10 @@ impl<'a> Usbd<'a> {
                     chip_revision.get()
                 );
             }
-            Some(ChipRevision::REV::Value::REVC) | Some(ChipRevision::REV::Value::REVD) => {
+            Some(ChipRevision::REV::Value::REVC)
+            | Some(ChipRevision::REV::Value::REVD)
+            | Some(ChipRevision::REV::Value::REVE)
+            | Some(ChipRevision::REV::Value::REVF) => {
                 debug_info!(
                     "Your chip is NRF52840 revision {}. The USB stack was tested on your chip :)",
                     chip_revision.get()
@@ -1315,7 +1335,7 @@ impl<'a> Usbd<'a> {
         // ms), but then the EPDATA event on the very first IN transfer
         // immediately after the `client.bus_reset()` call below never occurs.
         for _ in 0..800000 {
-            cortexm4::support::nop();
+            cortexm4f::support::nop();
         }
 
         // TODO: reset controller stack
@@ -1903,7 +1923,7 @@ impl<'a> Usbd<'a> {
     }
 }
 
-impl<'a> power::PowerClient for Usbd<'a> {
+impl power::PowerClient for Usbd<'_> {
     fn handle_power_event(&self, event: power::PowerEvent) {
         match event {
             power::PowerEvent::UsbPluggedIn => self.enable(),

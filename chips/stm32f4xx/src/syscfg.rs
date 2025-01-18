@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use enum_primitive::cast::FromPrimitive;
 use enum_primitive::enum_from_primitive;
 use kernel::platform::chip::ClockInterface;
@@ -5,8 +9,8 @@ use kernel::utilities::registers::interfaces::ReadWriteable;
 use kernel::utilities::registers::{register_bitfields, ReadOnly, ReadWrite};
 use kernel::utilities::StaticRef;
 
+use crate::clocks::{phclk, Stm32f4Clocks};
 use crate::gpio;
-use crate::rcc;
 
 /// System configuration controller
 #[repr(C)]
@@ -121,12 +125,12 @@ pub struct Syscfg<'a> {
 }
 
 impl<'a> Syscfg<'a> {
-    pub const fn new(rcc: &'a rcc::Rcc) -> Self {
+    pub const fn new(clocks: &'a dyn Stm32f4Clocks) -> Self {
         Self {
             registers: SYSCFG_BASE,
-            clock: SyscfgClock(rcc::PeripheralClock::new(
-                rcc::PeripheralClockType::APB2(rcc::PCLK2::SYSCFG),
-                rcc,
+            clock: SyscfgClock(phclk::PeripheralClock::new(
+                phclk::PeripheralClockType::APB2(phclk::PCLK2::SYSCFG),
+                clocks,
             )),
         }
     }
@@ -226,7 +230,7 @@ impl<'a> Syscfg<'a> {
     }
 }
 
-struct SyscfgClock<'a>(rcc::PeripheralClock<'a>);
+struct SyscfgClock<'a>(phclk::PeripheralClock<'a>);
 
 impl ClockInterface for SyscfgClock<'_> {
     fn is_enabled(&self) -> bool {

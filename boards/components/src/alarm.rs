@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Components for hardware timer Alarms.
 //!
 //! This provides two components, `AlarmMuxComponent`, which provides a
@@ -53,6 +57,11 @@ macro_rules! alarm_component_static {
     };};
 }
 
+pub type AlarmDriverComponentType<A> = capsules_core::alarm::AlarmDriver<
+    'static,
+    capsules_core::virtualizers::virtual_alarm::VirtualMuxAlarm<'static, A>,
+>;
+
 pub struct AlarmMuxComponent<A: 'static + time::Alarm<'static>> {
     alarm: &'static A,
 }
@@ -88,8 +97,8 @@ impl<A: 'static + time::Alarm<'static>> AlarmDriverComponent<A> {
         mux: &'static MuxAlarm<'static, A>,
     ) -> AlarmDriverComponent<A> {
         AlarmDriverComponent {
-            board_kernel: board_kernel,
-            driver_num: driver_num,
+            board_kernel,
+            driver_num,
             alarm_mux: mux,
         }
     }

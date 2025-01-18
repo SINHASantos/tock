@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component for initializing an Analog Comparator.
 //!
 //! This provides one Component, AcComponent, which implements a userspace
@@ -21,7 +25,6 @@
 
 use capsules_extra::analog_comparator::AnalogComparator;
 use core::mem::MaybeUninit;
-use kernel;
 use kernel::capabilities;
 use kernel::component::Component;
 use kernel::create_capability;

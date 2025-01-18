@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! MCU Control driver.
 
 use kernel::debug;
@@ -127,6 +131,12 @@ impl McuCtrl {
                 debug!("Apollo3 chip revision: A rev0");
             }
         }
+    }
+
+    pub fn disable_ble(&self) {
+        self.registers
+            .featureenable
+            .modify(FEATUREENABLE::BLEREQ::CLEAR);
     }
 
     pub fn enable_ble(&self) {

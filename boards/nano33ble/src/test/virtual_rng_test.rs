@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Test file for the virtual_rng
 //! To run this test, include the code
 //! ```
@@ -6,14 +10,13 @@
 
 use capsules_core::rng;
 use capsules_core::test::virtual_rng::TestRng;
-use kernel::hil::entropy::Entropy32;
 use kernel::hil::rng::Rng;
 use kernel::{debug, static_init};
 
-pub unsafe fn run(trng: &'static dyn Entropy32<'static>) {
+pub unsafe fn run(trng: &'static nrf52840::trng::Trng) {
     debug!("Starting virtual_rng get tests:");
     let rng_obj = static_init!(
-        rng::Entropy32ToRandom<'static>,
+        rng::Entropy32ToRandom<'static, nrf52840::trng::Trng>,
         rng::Entropy32ToRandom::new(trng)
     );
 

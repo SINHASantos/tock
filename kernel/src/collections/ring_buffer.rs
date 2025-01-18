@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Implementation of a ring buffer.
 
 use crate::collections::queue;
@@ -13,7 +17,7 @@ impl<'a, T: Copy> RingBuffer<'a, T> {
         RingBuffer {
             head: 0,
             tail: 0,
-            ring: ring,
+            ring,
         }
     }
 
@@ -105,6 +109,39 @@ impl<T: Copy> queue::Queue<T> for RingBuffer<'_, T> {
         } else {
             None
         }
+    }
+
+    /// Removes the first element for which the provided closure returns `true`.
+    ///
+    /// This walks the ring buffer and, upon finding a matching element, removes
+    /// it. It then shifts all subsequent elements forward (filling the hole
+    /// created by removing the element).
+    ///
+    /// If an element was removed, this function returns it as `Some(elem)`.
+    fn remove_first_matching<F>(&mut self, f: F) -> Option<T>
+    where
+        F: Fn(&T) -> bool,
+    {
+        let len = self.ring.len();
+        let mut slot = self.head;
+        while slot != self.tail {
+            if f(&self.ring[slot]) {
+                // This is the desired element, remove it and return it
+                let val = self.ring[slot];
+
+                let mut next_slot = (slot + 1) % len;
+                // Move everything past this element forward in the ring
+                while next_slot != self.tail {
+                    self.ring[slot] = self.ring[next_slot];
+                    slot = next_slot;
+                    next_slot = (next_slot + 1) % len;
+                }
+                self.tail = slot;
+                return Some(val);
+            }
+            slot = (slot + 1) % len;
+        }
+        None
     }
 
     fn empty(&mut self) {

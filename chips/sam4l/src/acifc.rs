@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Implementation of the SAM4L ACIFC controller.
 //!
 //! See datasheet section "37. Analog Comparator Interface (ACIFC)".
@@ -314,7 +318,7 @@ impl<'a> Acifc<'a> {
 
         // Make sure enabling was succesful
         let result = regs.ctrl.is_set(Control::EN);
-        if result == false {
+        if !result {
             debug!("Failed enabling analog comparator, are you sure the clock is enabled?");
         }
     }

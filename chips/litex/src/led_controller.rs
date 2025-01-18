@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! LiteX led controller (`LedChaser` core)
 //!
 //! Hardware source and documentation available at
@@ -65,7 +69,7 @@ impl<R: LiteXSoCRegisterConfiguration> LiteXLedController<R> {
     /// instance for the requested LED already exists. Call
     /// [`LiteXLed::destroy`] (or drop the [`LiteXLed`]) to be create
     /// a new instance for this LED.
-    pub fn get_led<'a>(&'a self, index: usize) -> Option<LiteXLed<'a, R>> {
+    pub fn get_led(&self, index: usize) -> Option<LiteXLed<'_, R>> {
         if index < self.led_count() && (self.led_references.get() & (1 << index)) == 0 {
             self.led_references
                 .set(self.led_references.get() | (1 << index));
@@ -85,7 +89,7 @@ impl<R: LiteXSoCRegisterConfiguration> LiteXLedController<R> {
     /// This function only checks whether the requested LEDs is within
     /// the controller's range of available LEDs, but *NOT* whether
     /// there already is a different reference to the same LED.
-    pub unsafe fn panic_led<'a>(&'a self, index: usize) -> Option<LiteXLed<'a, R>> {
+    pub unsafe fn panic_led(&self, index: usize) -> Option<LiteXLed<'_, R>> {
         if index < self.led_count() {
             Some(LiteXLed::new(self, index))
         } else {
@@ -150,7 +154,7 @@ impl<'a, R: LiteXSoCRegisterConfiguration> LiteXLed<'a, R> {
     }
 }
 
-impl<'a, R: LiteXSoCRegisterConfiguration> hil::led::Led for LiteXLed<'a, R> {
+impl<R: LiteXSoCRegisterConfiguration> hil::led::Led for LiteXLed<'_, R> {
     fn init(&self) {
         self.controller.set_led(self.index, false);
     }
@@ -173,7 +177,7 @@ impl<'a, R: LiteXSoCRegisterConfiguration> hil::led::Led for LiteXLed<'a, R> {
     }
 }
 
-impl<'a, R: LiteXSoCRegisterConfiguration> Drop for LiteXLed<'a, R> {
+impl<R: LiteXSoCRegisterConfiguration> Drop for LiteXLed<'_, R> {
     /// Deregister the LED with the controller
     fn drop(&mut self) {
         self.controller.destroy_led(self.index);

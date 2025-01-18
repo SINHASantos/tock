@@ -1,7 +1,11 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Chip trait setup.
 
 use core::fmt::Write;
-use cortexm7::{self, CortexM7, CortexMVariant};
+use cortexm7::{CortexM7, CortexMVariant};
 use kernel::debug;
 use kernel::platform::chip::{Chip, InterruptService};
 

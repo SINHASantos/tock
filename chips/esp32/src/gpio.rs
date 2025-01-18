@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! GPIO driver.
 
 use core::ops::{Index, IndexMut};
@@ -324,7 +328,7 @@ pub struct Port<'a> {
     pins: [GpioPin<'a>; 17],
 }
 
-impl<'a> Port<'a> {
+impl Port<'_> {
     pub const fn new() -> Self {
         Self {
             pins: [

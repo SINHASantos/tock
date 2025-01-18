@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! SyscallDriver for the Taos TSL2561 light sensor.
 //!
 //! <http://www.digikey.com/product-detail/en/ams-taos-usa-inc/TSL2561FN/TSL2561-FNCT-ND/3095298>
@@ -27,7 +31,7 @@ use capsules_core::driver;
 pub const DRIVER_NUM: usize = driver::NUM::Tsl2561 as usize;
 
 // Buffer to use for I2C messages
-pub static mut BUFFER: [u8; 4] = [0; 4];
+pub const BUFFER_LENGTH: usize = 4;
 
 /// Command register defines
 const COMMAND_REG: u8 = 0x80;
@@ -207,8 +211,8 @@ enum State {
 #[derive(Default)]
 pub struct App {}
 
-pub struct TSL2561<'a> {
-    i2c: &'a dyn i2c::I2CDevice,
+pub struct TSL2561<'a, I: i2c::I2CDevice> {
+    i2c: &'a I,
     interrupt_pin: &'a dyn gpio::InterruptPin<'a>,
     state: Cell<State>,
     buffer: TakeCell<'static, [u8]>,
@@ -216,17 +220,17 @@ pub struct TSL2561<'a> {
     owning_process: OptionalCell<ProcessId>,
 }
 
-impl<'a> TSL2561<'a> {
+impl<'a, I: i2c::I2CDevice> TSL2561<'a, I> {
     pub fn new(
-        i2c: &'a dyn i2c::I2CDevice,
+        i2c: &'a I,
         interrupt_pin: &'a dyn gpio::InterruptPin<'a>,
         buffer: &'static mut [u8],
         apps: Grant<App, UpcallCount<1>, AllowRoCount<0>, AllowRwCount<0>>,
     ) -> Self {
         // setup and return struct
         Self {
-            i2c: i2c,
-            interrupt_pin: interrupt_pin,
+            i2c,
+            interrupt_pin,
             state: Cell::new(State::Idle),
             buffer: TakeCell::new(buffer),
             apps,
@@ -273,7 +277,7 @@ impl<'a> TSL2561<'a> {
                                                    // let mut ch_scale: usize = 1 << CH_SCALE; // Default
 
         // Scale if gain is NOT 16X
-        ch_scale = ch_scale << 4; // scale 1X to 16X
+        ch_scale <<= 4; // scale 1X to 16X
 
         // scale the channel values
         let channel0 = (chan0 as usize * ch_scale) >> CH_SCALE;
@@ -356,7 +360,7 @@ impl<'a> TSL2561<'a> {
     }
 }
 
-impl i2c::I2CClient for TSL2561<'_> {
+impl<I: i2c::I2CDevice> i2c::I2CClient for TSL2561<'_, I> {
     fn command_complete(&self, buffer: &'static mut [u8], _status: Result<(), i2c::Error>) {
         match self.state.get() {
             State::SelectId => {
@@ -424,7 +428,7 @@ impl i2c::I2CClient for TSL2561<'_> {
                 let lux = self.calculate_lux(chan0, chan1);
 
                 self.owning_process.map(|pid| {
-                    let _ = self.apps.enter(*pid, |_, upcalls| {
+                    let _ = self.apps.enter(pid, |_, upcalls| {
                         upcalls.schedule_upcall(0, (0, lux, 0)).ok();
                     });
                 });
@@ -446,7 +450,7 @@ impl i2c::I2CClient for TSL2561<'_> {
     }
 }
 
-impl gpio::Client for TSL2561<'_> {
+impl<I: i2c::I2CDevice> gpio::Client for TSL2561<'_, I> {
     fn fired(&self) {
         self.buffer.take().map(|buffer| {
             // turn on i2c to send commands
@@ -461,7 +465,7 @@ impl gpio::Client for TSL2561<'_> {
     }
 }
 
-impl SyscallDriver for TSL2561<'_> {
+impl<I: i2c::I2CDevice> SyscallDriver for TSL2561<'_, I> {
     fn command(
         &self,
         command_num: usize,
@@ -478,7 +482,7 @@ impl SyscallDriver for TSL2561<'_> {
         // some (alive) process
         let match_or_empty_or_nonexistant = self.owning_process.map_or(true, |current_process| {
             self.apps
-                .enter(*current_process, |_, _| current_process == &process_id)
+                .enter(current_process, |_, _| current_process == process_id)
                 .unwrap_or(true)
         });
         if match_or_empty_or_nonexistant {

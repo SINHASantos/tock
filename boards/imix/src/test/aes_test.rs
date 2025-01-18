@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Test that AES (either CTR or CBC mode) is working properly.
 //!
 //! To test CBC mode, add the following line to the imix boot sequence:
@@ -49,7 +53,7 @@ unsafe fn static_init_test_ctr(aes: &'static Aes) -> &'static TestAes128Ctr<'sta
 
     static_init!(
         TestAes128Ctr<'static, Aes>,
-        TestAes128Ctr::new(&aes, key, iv, source, data)
+        TestAes128Ctr::new(aes, key, iv, source, data, true)
     )
 }
 
@@ -61,6 +65,6 @@ unsafe fn static_init_test_cbc(aes: &'static Aes) -> &'static TestAes128Cbc<'sta
 
     static_init!(
         TestAes128Cbc<'static, Aes>,
-        TestAes128Cbc::new(&aes, key, iv, source, data)
+        TestAes128Cbc::new(aes, key, iv, source, data, true)
     )
 }

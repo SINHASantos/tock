@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Mapping of capsules to their syscall driver number.
 
 use enum_primitive::cast::FromPrimitive;
@@ -35,6 +39,10 @@ pub enum NUM {
     BleAdvertising        = 0x30000,
     Ieee802154            = 0x30001,
     Udp                   = 0x30002,
+    LoRaPhySPI            = 0x30003,
+    LoRaPhyGPIO           = 0x30004,
+    Thread                = 0x30005,
+    Eui64                 = 0x30006,
 
     // Cryptography
     Rng                   = 0x40001,
@@ -48,7 +56,7 @@ pub enum NUM {
     AppFlash              = 0x50000,
     NvmStorage            = 0x50001,
     SdCard                = 0x50002,
-    KVSystem              = 0x50003,
+    Kv                    = 0x50003,
 
     // Sensors
     Temperature           = 0x60000,
@@ -58,6 +66,10 @@ pub enum NUM {
     Proximity             = 0x60005,
     SoundPressure         = 0x60006,
     AirQuality            = 0x60007,
+    Pressure              = 0x60008,
+    Distance              = 0x60009,
+    Moisture              = 0x6000A,
+    RainFall              = 0x6000B,
 
     // Sensor ICs
     Tsl2561               = 0x70000,
@@ -81,5 +93,9 @@ pub enum NUM {
     Touch                 = 0x90002,
     TextScreen            = 0x90003,
     SevenSegment          = 0x90004,
+    KeyboardHid           = 0x90005,
+    DateTime              = 0x90007,
+    CycleCount            = 0x90008,
+    Servo                 = 0x90009,
 }
 }

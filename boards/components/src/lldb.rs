@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component for LowLevelDebug
 //!
 //! This provides one Component, LowLevelDebugComponent, which provides the
@@ -54,9 +58,9 @@ impl LowLevelDebugComponent {
         uart_mux: &'static MuxUart,
     ) -> LowLevelDebugComponent {
         LowLevelDebugComponent {
-            board_kernel: board_kernel,
-            driver_num: driver_num,
-            uart_mux: uart_mux,
+            board_kernel,
+            driver_num,
+            uart_mux,
         }
     }
 }

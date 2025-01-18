@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use crate::BOARD;
 use crate::CHIP;
 use crate::MAIN_CAP;
@@ -51,6 +55,7 @@ fn trivial_assertion() {
 
 mod aes_test;
 mod csrng;
+mod flash;
 mod hmac;
 mod multi_alarm;
 mod otbn;
@@ -59,9 +64,3 @@ mod rsa_4096;
 mod sha256soft_test; // Test software SHA capsule
 mod sip_hash;
 mod spi_host;
-mod tickv_test;
-/// Only run the flash_ctrl tests last, as testing memory protection
-/// may deny access to flash pages for other tests depending
-/// on flash (i.e tickV).
-#[rustfmt::skip]
-mod flash_ctrl;

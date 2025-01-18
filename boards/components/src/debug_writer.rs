@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component for DebugWriter, the implementation for `debug!()`.
 //!
 //! This provides components for attaching the kernel debug output (for panic!,
@@ -38,8 +42,10 @@ pub const DEFAULT_DEBUG_BUFFER_KBYTE: usize = 2;
 const DEBUG_BUFFER_SPLIT: usize = 64;
 
 /// The optional argument to this macro allows boards to specify the size of the in-RAM
-/// buffer used for storing debug messages. Increase this value to be able to send more debug
-/// messages in quick succession.
+/// buffer used for storing debug messages.
+///
+/// Increase this value to be able to send more debug messages in
+/// quick succession.
 #[macro_export]
 macro_rules! debug_writer_component_static {
     ($BUF_SIZE_KB:expr) => {{
@@ -57,8 +63,10 @@ macro_rules! debug_writer_component_static {
 }
 
 /// The optional argument to this macro allows boards to specify the size of the in-RAM
-/// buffer used for storing debug messages. Increase this value to be able to send more debug
-/// messages in quick succession.
+/// buffer used for storing debug messages.
+///
+/// Increase this value to be able to send more debug messages in
+/// quick succession.
 #[macro_export]
 macro_rules! debug_writer_no_mux_component_static {
     ($BUF_SIZE_KB:expr) => {{

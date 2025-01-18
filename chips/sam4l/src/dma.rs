@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Implementation of the PDCA DMA peripheral.
 
 use crate::pm;
@@ -94,9 +98,11 @@ const DMA_CHANNEL_SIZE: usize = 0x40;
 
 /// Shared counter that Keeps track of how many DMA channels are currently
 /// active.
-static mut NUM_ENABLED: atomic::AtomicUsize = atomic::AtomicUsize::new(0);
+static NUM_ENABLED: atomic::AtomicUsize = atomic::AtomicUsize::new(0);
 
-/// The DMA channel number. Each channel transfers data between memory and a
+/// The DMA channel number.
+///
+/// Each channel transfers data between memory and a
 /// particular peripheral function (e.g., SPI read or SPI write, but not both
 /// simultaneously). There are 16 available channels (Section 16.7).
 #[derive(Copy, Clone)]
@@ -170,8 +176,11 @@ pub enum DMAPeripheral {
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u8)]
 pub enum DMAWidth {
+    ///  DMA is acting on bytes
     Width8Bit = 0,
+    /// DMA is acting on halfwords
     Width16Bit = 1,
+    /// DMA is acting on words
     Width32Bit = 2,
 }
 
@@ -212,9 +221,7 @@ impl DMAChannel {
         pm::enable_clock(pm::Clock::PBB(pm::PBBClock::PDCA));
 
         if !self.enabled.get() {
-            unsafe {
-                NUM_ENABLED.fetch_add(1, atomic::Ordering::Relaxed);
-            }
+            NUM_ENABLED.fetch_add(1, atomic::Ordering::Relaxed);
 
             // Disable all interrupts
             self.registers
@@ -227,12 +234,10 @@ impl DMAChannel {
 
     pub fn disable(&self) {
         if self.enabled.get() {
-            unsafe {
-                let num_enabled = NUM_ENABLED.fetch_sub(1, atomic::Ordering::Relaxed);
-                if num_enabled == 1 {
-                    pm::disable_clock(pm::Clock::HSB(pm::HSBClock::PDCA));
-                    pm::disable_clock(pm::Clock::PBB(pm::PBBClock::PDCA));
-                }
+            let num_enabled = NUM_ENABLED.fetch_sub(1, atomic::Ordering::Relaxed);
+            if num_enabled == 1 {
+                pm::disable_clock(pm::Clock::HSB(pm::HSBClock::PDCA));
+                pm::disable_clock(pm::Clock::PBB(pm::PBBClock::PDCA));
             }
             self.registers.cr.write(Control::TDIS::SET);
             self.enabled.set(false);
@@ -263,9 +268,9 @@ impl DMAChannel {
 
         let maxlen = buf.len()
             / match self.width.get() {
-                DMAWidth::Width8Bit /*  DMA is acting on bytes     */ => 1,
-                DMAWidth::Width16Bit /* DMA is acting on halfwords */ => 2,
-                DMAWidth::Width32Bit /* DMA is acting on words     */ => 4,
+                DMAWidth::Width8Bit => 1,
+                DMAWidth::Width16Bit => 2,
+                DMAWidth::Width32Bit => 4,
             };
         len = cmp::min(len, maxlen);
         self.registers
@@ -275,7 +280,7 @@ impl DMAChannel {
         self.registers.psr.set(pid);
         self.registers
             .marr
-            .write(MemoryAddressReload::MARV.val(&buf[0] as *const u8 as u32));
+            .write(MemoryAddressReload::MARV.val(core::ptr::from_ref::<u8>(&buf[0]) as u32));
         self.registers
             .tcrr
             .write(TransferCounter::TCV.val(len as u32));

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Virtualize a UART bus.
 //!
 //! This allows multiple Tock capsules to use the same UART bus. This is likely
@@ -13,14 +17,14 @@
 //! Usage
 //! -----
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use kernel::{hil, static_init};
-//! # use capsules::virtual_uart::{MuxUart, UartDevice};
+//! # use capsules_core::virtual_uart::{MuxUart, UartDevice};
 //!
 //! // Create a shared UART channel for the console and for kernel debug.
 //! let uart_mux = static_init!(
 //!     MuxUart<'static>,
-//!     MuxUart::new(&sam4l::usart::USART0, &mut capsules::virtual_uart::RX_BUF)
+//!     MuxUart::new(&sam4l::usart::USART0, &mut capsules_core::virtual_uart::RX_BUF)
 //! );
 //! hil::uart::UART::set_receive_client(&sam4l::usart::USART0, uart_mux);
 //! hil::uart::UART::set_transmit_client(&sam4l::usart::USART0, uart_mux);
@@ -29,11 +33,11 @@
 //! let console_uart = static_init!(UartDevice, UartDevice::new(uart_mux, true));
 //! console_uart.setup(); // This is important!
 //! let console = static_init!(
-//!     capsules::console::Console<'static>,
-//!     capsules::console::Console::new(
+//!     capsules_core::console::Console<'static>,
+//!     capsules_core::console::Console::new(
 //!         console_uart,
-//!         &mut capsules::console::WRITE_BUF,
-//!         &mut capsules::console::READ_BUF,
+//!         &mut capsules_core::console::WRITE_BUF,
+//!         &mut capsules_core::console::READ_BUF,
 //!         board_kernel.create_grant(&grant_cap)
 //!     )
 //! );
@@ -62,7 +66,7 @@ pub struct MuxUart<'a> {
     deferred_call: DeferredCall,
 }
 
-impl<'a> uart::TransmitClient for MuxUart<'a> {
+impl uart::TransmitClient for MuxUart<'_> {
     fn transmitted_buffer(
         &self,
         tx_buffer: &'static mut [u8],
@@ -77,7 +81,7 @@ impl<'a> uart::TransmitClient for MuxUart<'a> {
     }
 }
 
-impl<'a> uart::ReceiveClient for MuxUart<'a> {
+impl uart::ReceiveClient for MuxUart<'_> {
     fn received_buffer(
         &self,
         buffer: &'static mut [u8],
@@ -114,9 +118,7 @@ impl<'a> uart::ReceiveClient for MuxUart<'a> {
                         || state == UartDeviceReceiveState::Aborting
                     {
                         // debug!("Have {} bytes, copying in bytes {}-{}, {} remain", rx_len, position, position + len, remaining);
-                        for i in 0..len {
-                            rxbuf[position + i] = buffer[i];
-                        }
+                        rxbuf[position..(len + position)].copy_from_slice(&buffer[..len]);
                     }
                     device.rx_position.set(position + len);
                     device.rx_buffer.replace(rxbuf);
@@ -180,7 +182,30 @@ impl<'a> uart::ReceiveClient for MuxUart<'a> {
         // we just received, or if a new receive has been started, we start the
         // underlying UART receive again.
         if read_pending {
-            self.start_receive(next_read_len);
+            if let Err((e, buf)) = self.start_receive(next_read_len) {
+                self.buffer.replace(buf);
+
+                // Report the error to all devices
+                self.devices.iter().for_each(|device| {
+                    if device.receiver {
+                        device.rx_buffer.take().map(|rxbuf| {
+                            let state = device.state.get();
+                            let position = device.rx_position.get();
+
+                            if state == UartDeviceReceiveState::Receiving {
+                                device.state.set(UartDeviceReceiveState::Idle);
+
+                                device.received_buffer(
+                                    rxbuf,
+                                    position,
+                                    Err(e),
+                                    uart::Error::Aborted,
+                                );
+                            }
+                        });
+                    }
+                });
+            }
         }
     }
 }
@@ -213,19 +238,20 @@ impl<'a> MuxUart<'a> {
             let mnode = self.devices.iter().find(|node| node.operation.is_some());
             mnode.map(|node| {
                 node.tx_buffer.take().map(|buf| {
-                    node.operation.map(move |op| match op {
-                        Operation::Transmit { len } => {
-                            let _ = self.uart.transmit_buffer(buf, *len).map_err(
-                                move |(ecode, buf)| {
-                                    node.tx_client.map(move |client| {
-                                        node.transmitting.set(false);
-                                        client.transmitted_buffer(buf, 0, Err(ecode));
-                                    });
-                                },
-                            );
-                        }
+                    node.operation.take().map(move |op| match op {
+                        Operation::Transmit { len } => match self.uart.transmit_buffer(buf, len) {
+                            Ok(()) => {
+                                self.inflight.set(node);
+                            }
+                            Err((ecode, buf)) => {
+                                node.tx_client.map(move |client| {
+                                    node.transmitting.set(false);
+                                    client.transmitted_buffer(buf, 0, Err(ecode));
+                                });
+                            }
+                        },
                         Operation::TransmitWord { word } => {
-                            let rcode = self.uart.transmit_word(*word);
+                            let rcode = self.uart.transmit_word(word);
                             if rcode != Ok(()) {
                                 node.tx_client.map(|client| {
                                     node.transmitting.set(false);
@@ -235,8 +261,6 @@ impl<'a> MuxUart<'a> {
                         }
                     });
                 });
-                node.operation.clear();
-                self.inflight.set(node);
             });
         }
     }
@@ -252,27 +276,27 @@ impl<'a> MuxUart<'a> {
     /// 2. We are in the midst of a read: abort so we can start a new read now
     ///    (return true)
     /// 3. We are idle: start reading (return false)
-    fn start_receive(&self, rx_len: usize) -> bool {
+    fn start_receive(&self, rx_len: usize) -> Result<bool, (ErrorCode, &'static mut [u8])> {
         self.buffer.take().map_or_else(
             || {
                 // No rxbuf which means a read is ongoing
                 if self.completing_read.get() {
                     // Case (1). Do nothing here, `received_buffer()` handler
                     // will call start_receive when ready.
-                    false
+                    Ok(false)
                 } else {
                     // Case (2). Stop the previous read so we can use the
                     // `received_buffer()` handler to recalculate the minimum
                     // length for a read.
                     let _ = self.uart.receive_abort();
-                    true
+                    Ok(true)
                 }
             },
             |rxbuf| {
                 // Case (3). No ongoing receive calls, we can start one now.
                 let len = cmp::min(rx_len, rxbuf.len());
-                let _ = self.uart.receive_buffer(rxbuf, len);
-                false
+                self.uart.receive_buffer(rxbuf, len)?;
+                Ok(false)
             },
         )
     }
@@ -283,8 +307,7 @@ impl<'a> MuxUart<'a> {
     /// requiring a callback with an error condition; if the operation
     /// is executed synchronously, the callback may be reentrant (executed
     /// during the downcall). Please see
-    ///
-    /// https://github.com/tock/tock/issues/1496
+    /// <https://github.com/tock/tock/issues/1496>
     fn do_next_op_async(&self) {
         self.deferred_call.set();
     }
@@ -332,8 +355,8 @@ impl<'a> UartDevice<'a> {
     pub fn new(mux: &'a MuxUart<'a>, receiver: bool) -> UartDevice<'a> {
         UartDevice {
             state: Cell::new(UartDeviceReceiveState::Idle),
-            mux: mux,
-            receiver: receiver,
+            mux,
+            receiver,
             tx_buffer: TakeCell::empty(),
             transmitting: Cell::new(false),
             rx_buffer: TakeCell::empty(),
@@ -352,7 +375,7 @@ impl<'a> UartDevice<'a> {
     }
 }
 
-impl<'a> uart::TransmitClient for UartDevice<'a> {
+impl uart::TransmitClient for UartDevice<'_> {
     fn transmitted_buffer(
         &self,
         tx_buffer: &'static mut [u8],
@@ -372,7 +395,7 @@ impl<'a> uart::TransmitClient for UartDevice<'a> {
         });
     }
 }
-impl<'a> uart::ReceiveClient for UartDevice<'a> {
+impl uart::ReceiveClient for UartDevice<'_> {
     fn received_buffer(
         &self,
         rx_buffer: &'static mut [u8],
@@ -408,7 +431,9 @@ impl<'a> uart::Transmit<'a> for UartDevice<'a> {
         tx_data: &'static mut [u8],
         tx_len: usize,
     ) -> Result<(), (ErrorCode, &'static mut [u8])> {
-        if self.transmitting.get() {
+        if tx_len == 0 {
+            Err((ErrorCode::SIZE, tx_data))
+        } else if self.transmitting.get() {
             Err((ErrorCode::BUSY, tx_data))
         } else {
             self.tx_buffer.replace(tx_data);
@@ -424,7 +449,7 @@ impl<'a> uart::Transmit<'a> for UartDevice<'a> {
             Err(ErrorCode::BUSY)
         } else {
             self.transmitting.set(true);
-            self.operation.set(Operation::TransmitWord { word: word });
+            self.operation.set(Operation::TransmitWord { word });
             self.mux.do_next_op_async();
             Ok(())
         }
@@ -451,7 +476,7 @@ impl<'a> uart::Receive<'a> for UartDevice<'a> {
             self.rx_len.set(rx_len);
             self.rx_position.set(0);
             self.state.set(UartDeviceReceiveState::Idle);
-            self.mux.start_receive(rx_len);
+            self.mux.start_receive(rx_len)?;
             self.state.set(UartDeviceReceiveState::Receiving);
             Ok(())
         }

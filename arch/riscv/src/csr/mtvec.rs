@@ -1,4 +1,8 @@
-use kernel::utilities::registers::{register_bitfields, LocalRegisterCopy};
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
+use kernel::utilities::registers::register_bitfields;
 
 // mtvec contains the address(es) of the trap handler
 register_bitfields![usize,
@@ -10,13 +14,3 @@ register_bitfields![usize,
         ]
     ]
 ];
-
-trait MtvecHelpers {
-    fn get_trap_address(&self) -> usize;
-}
-
-impl MtvecHelpers for LocalRegisterCopy<usize, mtvec::Register> {
-    fn get_trap_address(&self) -> usize {
-        self.read(mtvec::trap_addr) << 2
-    }
-}

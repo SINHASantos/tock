@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use capsules_extra::test::aes::TestAes128Ctr;
 use kernel::hil::symmetric_encryption::{AES128, AES128_BLOCK_SIZE, AES128_KEY_SIZE};
 use kernel::static_init;
@@ -26,6 +30,6 @@ unsafe fn static_init_test(
 
     static_init!(
         TestAes128Ctr<'static, AesECB>,
-        TestAes128Ctr::new(aesecb, key, iv, source, data)
+        TestAes128Ctr::new(aesecb, key, iv, source, data, true)
     )
 }

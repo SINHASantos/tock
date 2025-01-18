@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Universal Serial Bus Device for Raspberry Pi Pico
 
 //! Authors: Cosmin Radu <cosmin.radu@wyliodrin.com>
@@ -1531,7 +1535,7 @@ impl<'a> UsbCtrl<'a> {
                         self.dpsram.ep_buf_ctrl[ep].ep_out_buf_ctrl.set(0);
                         self.dpsram.ep_buf_ctrl[ep].ep_out_buf_ctrl.modify(
                             EP_BUFFER_CONTROL::AVAILABLE0::SET
-                                + EP_BUFFER_CONTROL::TRANSFER_LENGTH0.val(64 as u32),
+                                + EP_BUFFER_CONTROL::TRANSFER_LENGTH0.val(64_u32),
                         );
                     }
                 }

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Virtualize a SPI master bus to enable multiple users of the SPI bus.
 
 use core::cell::Cell;
@@ -5,25 +9,25 @@ use kernel::collections::list::{List, ListLink, ListNode};
 use kernel::deferred_call::{DeferredCall, DeferredCallClient};
 use kernel::hil;
 use kernel::hil::spi::SpiMasterClient;
-use kernel::utilities::cells::{OptionalCell, TakeCell};
+use kernel::utilities::cells::{MapCell, OptionalCell};
+use kernel::utilities::leasable_buffer::SubSliceMut;
 use kernel::ErrorCode;
 
 /// The Mux struct manages multiple Spi clients. Each client may have
 /// at most one outstanding Spi request.
-pub struct MuxSpiMaster<'a, Spi: hil::spi::SpiMaster> {
+pub struct MuxSpiMaster<'a, Spi: hil::spi::SpiMaster<'a>> {
     spi: &'a Spi,
     devices: List<'a, VirtualSpiMasterDevice<'a, Spi>>,
     inflight: OptionalCell<&'a VirtualSpiMasterDevice<'a, Spi>>,
     deferred_call: DeferredCall,
 }
 
-impl<Spi: hil::spi::SpiMaster> hil::spi::SpiMasterClient for MuxSpiMaster<'_, Spi> {
+impl<'a, Spi: hil::spi::SpiMaster<'a>> hil::spi::SpiMasterClient for MuxSpiMaster<'a, Spi> {
     fn read_write_done(
         &self,
-        write_buffer: &'static mut [u8],
-        read_buffer: Option<&'static mut [u8]>,
-        len: usize,
-        status: Result<(), ErrorCode>,
+        write_buffer: SubSliceMut<'static, u8>,
+        read_buffer: Option<SubSliceMut<'static, u8>>,
+        status: Result<usize, ErrorCode>,
     ) {
         let dev = self.inflight.take();
         // Need to do next op before signaling so we get some kind of
@@ -32,12 +36,12 @@ impl<Spi: hil::spi::SpiMaster> hil::spi::SpiMasterClient for MuxSpiMaster<'_, Sp
         // -pal 7/30/21
         self.do_next_op();
         dev.map(move |device| {
-            device.read_write_done(write_buffer, read_buffer, len, status);
+            device.read_write_done(write_buffer, read_buffer, status);
         });
     }
 }
 
-impl<'a, Spi: hil::spi::SpiMaster> MuxSpiMaster<'a, Spi> {
+impl<'a, Spi: hil::spi::SpiMaster<'a>> MuxSpiMaster<'a, Spi> {
     pub fn new(spi: &'a Spi) -> Self {
         Self {
             spi,
@@ -62,7 +66,7 @@ impl<'a, Spi: hil::spi::SpiMaster> MuxSpiMaster<'a, Spi> {
                 // Need to set idle here in case callback changes state
                 node.operation.set(Op::Idle);
                 match op {
-                    Op::ReadWriteBytes(len) => {
+                    Op::ReadWriteBytes => {
                         // Only async operations want to block by setting
                         // the devices as inflight.
                         self.inflight.set(node);
@@ -72,28 +76,27 @@ impl<'a, Spi: hil::spi::SpiMaster> MuxSpiMaster<'a, Spi> {
                             let phaseresult = self.spi.set_phase(configuration.phase);
                             if rresult.is_err() || polresult.is_err() || phaseresult.is_err() {
                                 node.txbuffer.replace(txbuffer);
-                                node.operation
-                                    .set(Op::ReadWriteDone(Err(ErrorCode::INVAL), len));
+                                node.operation.set(Op::ReadWriteDone(Err(ErrorCode::INVAL)));
                                 self.do_next_op_async();
                             } else {
                                 let rxbuffer = node.rxbuffer.take();
                                 if let Err((e, write_buffer, read_buffer)) =
-                                    self.spi.read_write_bytes(txbuffer, rxbuffer, len)
+                                    self.spi.read_write_bytes(txbuffer, rxbuffer)
                                 {
                                     node.txbuffer.replace(write_buffer);
                                     read_buffer.map(|buffer| {
                                         node.rxbuffer.replace(buffer);
                                     });
-                                    node.operation.set(Op::ReadWriteDone(Err(e), len));
+                                    node.operation.set(Op::ReadWriteDone(Err(e)));
                                     self.do_next_op_async();
                                 }
                             }
                         });
                     }
-                    Op::ReadWriteDone(status, len) => {
+                    Op::ReadWriteDone(status) => {
                         node.txbuffer.take().map(|write_buffer| {
                             let read_buffer = node.rxbuffer.take();
-                            self.read_write_done(write_buffer, read_buffer, len, status);
+                            self.read_write_done(write_buffer, read_buffer, status);
                         });
                     }
                     Op::Idle => {} // Can't get here...
@@ -103,10 +106,10 @@ impl<'a, Spi: hil::spi::SpiMaster> MuxSpiMaster<'a, Spi> {
             self.inflight.map(|node| {
                 match node.operation.get() {
                     // we have to report an error
-                    Op::ReadWriteDone(status, len) => {
+                    Op::ReadWriteDone(status) => {
                         node.txbuffer.take().map(|write_buffer| {
                             let read_buffer = node.rxbuffer.take();
-                            self.read_write_done(write_buffer, read_buffer, len, status);
+                            self.read_write_done(write_buffer, read_buffer, status);
                         });
                     }
                     _ => {} // Something is really in flight
@@ -121,14 +124,13 @@ impl<'a, Spi: hil::spi::SpiMaster> MuxSpiMaster<'a, Spi> {
     /// requiring a callback with an error condition; if the operation
     /// is executed synchronously, the callback may be reentrant (executed
     /// during the downcall). Please see
-    ///
-    /// https://github.com/tock/tock/issues/1496
+    /// <https://github.com/tock/tock/issues/1496>
     fn do_next_op_async(&self) {
         self.deferred_call.set();
     }
 }
 
-impl<'a, Spi: hil::spi::SpiMaster> DeferredCallClient for MuxSpiMaster<'a, Spi> {
+impl<'a, Spi: hil::spi::SpiMaster<'a>> DeferredCallClient for MuxSpiMaster<'a, Spi> {
     fn handle_deferred_call(&self) {
         self.do_next_op();
     }
@@ -141,13 +143,13 @@ impl<'a, Spi: hil::spi::SpiMaster> DeferredCallClient for MuxSpiMaster<'a, Spi> 
 #[derive(Copy, Clone, PartialEq)]
 enum Op {
     Idle,
-    ReadWriteBytes(usize),
-    ReadWriteDone(Result<(), ErrorCode>, usize),
+    ReadWriteBytes,
+    ReadWriteDone(Result<usize, ErrorCode>),
 }
 
 // Structure used to store the SPI configuration of a client/virtual device,
 // so it can restored on each operation.
-struct SpiConfiguration<Spi: hil::spi::SpiMaster> {
+struct SpiConfiguration<'a, Spi: hil::spi::SpiMaster<'a>> {
     chip_select: Spi::ChipSelect,
     polarity: hil::spi::ClockPolarity,
     phase: hil::spi::ClockPhase,
@@ -157,38 +159,38 @@ struct SpiConfiguration<Spi: hil::spi::SpiMaster> {
 // Have to do this manually because otherwise the Copy and Clone are parameterized
 // by Spi::ChipSelect and don't work for Cells.
 // https://stackoverflow.com/questions/63132174/how-do-i-fix-the-method-clone-exists-but-the-following-trait-bounds-were-not
-impl<Spi: hil::spi::SpiMaster> Copy for SpiConfiguration<Spi> {}
-impl<Spi: hil::spi::SpiMaster> Clone for SpiConfiguration<Spi> {
-    fn clone(&self) -> SpiConfiguration<Spi> {
+impl<'a, Spi: hil::spi::SpiMaster<'a>> Copy for SpiConfiguration<'a, Spi> {}
+impl<'a, Spi: hil::spi::SpiMaster<'a>> Clone for SpiConfiguration<'a, Spi> {
+    fn clone(&self) -> SpiConfiguration<'a, Spi> {
         *self
     }
 }
 
-pub struct VirtualSpiMasterDevice<'a, Spi: hil::spi::SpiMaster> {
+pub struct VirtualSpiMasterDevice<'a, Spi: hil::spi::SpiMaster<'a>> {
     mux: &'a MuxSpiMaster<'a, Spi>,
-    configuration: Cell<SpiConfiguration<Spi>>,
-    txbuffer: TakeCell<'static, [u8]>,
-    rxbuffer: TakeCell<'static, [u8]>,
+    configuration: Cell<SpiConfiguration<'a, Spi>>,
+    txbuffer: MapCell<SubSliceMut<'static, u8>>,
+    rxbuffer: MapCell<SubSliceMut<'static, u8>>,
     operation: Cell<Op>,
     next: ListLink<'a, VirtualSpiMasterDevice<'a, Spi>>,
     client: OptionalCell<&'a dyn hil::spi::SpiMasterClient>,
 }
 
-impl<'a, Spi: hil::spi::SpiMaster> VirtualSpiMasterDevice<'a, Spi> {
+impl<'a, Spi: hil::spi::SpiMaster<'a>> VirtualSpiMasterDevice<'a, Spi> {
     pub fn new(
         mux: &'a MuxSpiMaster<'a, Spi>,
         chip_select: Spi::ChipSelect,
     ) -> VirtualSpiMasterDevice<'a, Spi> {
         VirtualSpiMasterDevice {
-            mux: mux,
+            mux,
             configuration: Cell::new(SpiConfiguration {
-                chip_select: chip_select,
+                chip_select,
                 polarity: hil::spi::ClockPolarity::IdleLow,
                 phase: hil::spi::ClockPhase::SampleLeading,
                 rate: 100_000,
             }),
-            txbuffer: TakeCell::empty(),
-            rxbuffer: TakeCell::empty(),
+            txbuffer: MapCell::empty(),
+            rxbuffer: MapCell::empty(),
             operation: Cell::new(Op::Idle),
             next: ListLink::empty(),
             client: OptionalCell::empty(),
@@ -201,21 +203,22 @@ impl<'a, Spi: hil::spi::SpiMaster> VirtualSpiMasterDevice<'a, Spi> {
     }
 }
 
-impl<Spi: hil::spi::SpiMaster> hil::spi::SpiMasterClient for VirtualSpiMasterDevice<'_, Spi> {
+impl<'a, Spi: hil::spi::SpiMaster<'a>> hil::spi::SpiMasterClient
+    for VirtualSpiMasterDevice<'a, Spi>
+{
     fn read_write_done(
         &self,
-        write_buffer: &'static mut [u8],
-        read_buffer: Option<&'static mut [u8]>,
-        len: usize,
-        status: Result<(), ErrorCode>,
+        write_buffer: SubSliceMut<'static, u8>,
+        read_buffer: Option<SubSliceMut<'static, u8>>,
+        status: Result<usize, ErrorCode>,
     ) {
         self.client.map(move |client| {
-            client.read_write_done(write_buffer, read_buffer, len, status);
+            client.read_write_done(write_buffer, read_buffer, status);
         });
     }
 }
 
-impl<'a, Spi: hil::spi::SpiMaster> ListNode<'a, VirtualSpiMasterDevice<'a, Spi>>
+impl<'a, Spi: hil::spi::SpiMaster<'a>> ListNode<'a, VirtualSpiMasterDevice<'a, Spi>>
     for VirtualSpiMasterDevice<'a, Spi>
 {
     fn next(&'a self) -> &'a ListLink<'a, VirtualSpiMasterDevice<'a, Spi>> {
@@ -223,7 +226,9 @@ impl<'a, Spi: hil::spi::SpiMaster> ListNode<'a, VirtualSpiMasterDevice<'a, Spi>>
     }
 }
 
-impl<'a, Spi: hil::spi::SpiMaster> hil::spi::SpiMasterDevice for VirtualSpiMasterDevice<'a, Spi> {
+impl<'a, Spi: hil::spi::SpiMaster<'a>> hil::spi::SpiMasterDevice<'a>
+    for VirtualSpiMasterDevice<'a, Spi>
+{
     fn set_client(&self, client: &'a dyn SpiMasterClient) {
         self.client.set(client);
     }
@@ -248,14 +253,22 @@ impl<'a, Spi: hil::spi::SpiMaster> hil::spi::SpiMasterDevice for VirtualSpiMaste
 
     fn read_write_bytes(
         &self,
-        write_buffer: &'static mut [u8],
-        read_buffer: Option<&'static mut [u8]>,
-        len: usize,
-    ) -> Result<(), (ErrorCode, &'static mut [u8], Option<&'static mut [u8]>)> {
+        write_buffer: SubSliceMut<'static, u8>,
+        mut read_buffer: Option<SubSliceMut<'static, u8>>,
+    ) -> Result<
+        (),
+        (
+            ErrorCode,
+            SubSliceMut<'static, u8>,
+            Option<SubSliceMut<'static, u8>>,
+        ),
+    > {
         if self.operation.get() == Op::Idle {
             self.txbuffer.replace(write_buffer);
-            self.rxbuffer.put(read_buffer);
-            self.operation.set(Op::ReadWriteBytes(len));
+            if let Some(rb) = read_buffer.take() {
+                self.rxbuffer.put(rb);
+            }
+            self.operation.set(Op::ReadWriteBytes);
             self.mux.do_next_op();
             Ok(())
         } else {
@@ -309,21 +322,21 @@ impl<'a, Spi: hil::spi::SpiMaster> hil::spi::SpiMasterDevice for VirtualSpiMaste
     }
 }
 
-pub struct SpiSlaveDevice<'a, Spi: hil::spi::SpiSlave> {
+pub struct SpiSlaveDevice<'a, Spi: hil::spi::SpiSlave<'a>> {
     spi: &'a Spi,
     client: OptionalCell<&'a dyn hil::spi::SpiSlaveClient>,
 }
 
-impl<'a, Spi: hil::spi::SpiSlave> SpiSlaveDevice<'a, Spi> {
+impl<'a, Spi: hil::spi::SpiSlave<'a>> SpiSlaveDevice<'a, Spi> {
     pub const fn new(spi: &'a Spi) -> SpiSlaveDevice<'a, Spi> {
         SpiSlaveDevice {
-            spi: spi,
+            spi,
             client: OptionalCell::empty(),
         }
     }
 }
 
-impl<Spi: hil::spi::SpiSlave> hil::spi::SpiSlaveClient for SpiSlaveDevice<'_, Spi> {
+impl<'a, Spi: hil::spi::SpiSlave<'a>> hil::spi::SpiSlaveClient for SpiSlaveDevice<'a, Spi> {
     fn read_write_done(
         &self,
         write_buffer: Option<&'static mut [u8]>,
@@ -343,7 +356,7 @@ impl<Spi: hil::spi::SpiSlave> hil::spi::SpiSlaveClient for SpiSlaveDevice<'_, Sp
     }
 }
 
-impl<'a, Spi: hil::spi::SpiSlave> hil::spi::SpiSlaveDevice for SpiSlaveDevice<'a, Spi> {
+impl<'a, Spi: hil::spi::SpiSlave<'a>> hil::spi::SpiSlaveDevice<'a> for SpiSlaveDevice<'a, Spi> {
     fn set_client(&self, client: &'a dyn hil::spi::SpiSlaveClient) {
         self.client.set(client);
     }

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component for non-volatile storage Drivers.
 //!
 //! This provides one component, NonvolatileStorageComponent, which provides
@@ -11,8 +15,8 @@
 //!     &sam4l::flashcalw::FLASH_CONTROLLER,
 //!     0x60000,
 //!     0x20000,
-//!     &_sstorage as *const u8 as usize,
-//!     &_estorage as *const u8 as usize,
+//!     core::ptr::addr_of!(_sstorage) as usize,
+//!     core::ptr::addr_of!(_estorage) as usize,
 //! )
 //! .finalize(components::nonvolatile_storage_component_static!(
 //!     sam4l::flashcalw::FLASHCALW
@@ -43,6 +47,8 @@ macro_rules! nonvolatile_storage_component_static {
         (page, ntp, ns, buffer)
     };};
 }
+
+pub type NonvolatileStorageComponentType = NonvolatileStorage<'static>;
 
 pub struct NonvolatileStorageComponent<
     F: 'static + hil::flash::Flash + hil::flash::HasClient<'static, NonvolatileToPages<'static, F>>,

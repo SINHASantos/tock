@@ -1,4 +1,8 @@
-use crate::rcc;
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
+use crate::clocks::{phclk, Stm32f4Clocks};
 use core::cell::Cell;
 use kernel::hil;
 use kernel::platform::chip::ClockInterface;
@@ -306,17 +310,17 @@ pub struct Adc<'a> {
     common_registers: StaticRef<AdcCommonRegisters>,
     clock: AdcClock<'a>,
     status: Cell<ADCStatus>,
-    client: OptionalCell<&'static dyn hil::adc::Client>,
+    client: OptionalCell<&'a dyn hil::adc::Client>,
 }
 
 impl<'a> Adc<'a> {
-    pub const fn new(rcc: &'a rcc::Rcc) -> Adc {
-        Adc {
+    pub const fn new(clocks: &'a dyn Stm32f4Clocks) -> Self {
+        Self {
             registers: ADC1_BASE,
             common_registers: ADC_COMMON_BASE,
-            clock: AdcClock(rcc::PeripheralClock::new(
-                rcc::PeripheralClockType::APB2(rcc::PCLK2::ADC1),
-                rcc,
+            clock: AdcClock(phclk::PeripheralClock::new(
+                phclk::PeripheralClockType::APB2(phclk::PCLK2::ADC1),
+                clocks,
             )),
             status: Cell::new(ADCStatus::Off),
             client: OptionalCell::empty(),
@@ -365,7 +369,7 @@ impl<'a> Adc<'a> {
     }
 }
 
-struct AdcClock<'a>(rcc::PeripheralClock<'a>);
+struct AdcClock<'a>(phclk::PeripheralClock<'a>);
 
 impl ClockInterface for AdcClock<'_> {
     fn is_enabled(&self) -> bool {
@@ -381,7 +385,7 @@ impl ClockInterface for AdcClock<'_> {
     }
 }
 
-impl hil::adc::Adc for Adc<'_> {
+impl<'a> hil::adc::Adc<'a> for Adc<'a> {
     type Channel = Channel;
 
     fn sample(&self, channel: &Self::Channel) -> Result<(), ErrorCode> {
@@ -423,13 +427,13 @@ impl hil::adc::Adc for Adc<'_> {
         Some(3300)
     }
 
-    fn set_client(&self, client: &'static dyn hil::adc::Client) {
+    fn set_client(&self, client: &'a dyn hil::adc::Client) {
         self.client.set(client);
     }
 }
 
 /// Not yet supported
-impl hil::adc::AdcHighSpeed for Adc<'_> {
+impl<'a> hil::adc::AdcHighSpeed<'a> for Adc<'a> {
     /// Capture buffered samples from the ADC continuously at a given
     /// frequency, calling the client whenever a buffer fills up. The client is
     /// then expected to either stop sampling or provide an additional buffer
@@ -476,5 +480,5 @@ impl hil::adc::AdcHighSpeed for Adc<'_> {
         Err(ErrorCode::NOSUPPORT)
     }
 
-    fn set_highspeed_client(&self, _client: &'static dyn hil::adc::HighSpeedClient) {}
+    fn set_highspeed_client(&self, _client: &'a dyn hil::adc::HighSpeedClient) {}
 }

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Debug capsule to cause a button press to make all apps fault.
 //!
 //! This is useful for debugging that capsules and apps work when they are
@@ -6,7 +10,7 @@
 //! Usage
 //! -----
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use kernel::{capabilities, static_init};
 //!
 //! struct ProcessMgmtCap;
@@ -51,7 +55,7 @@ impl<'a, C: ProcessManagementCapability> DebugProcessRestart<'a, C> {
         pin.enable_interrupts(gpio::InterruptEdge::EitherEdge);
 
         DebugProcessRestart {
-            kernel: kernel,
+            kernel,
             capability: cap,
             pin,
             mode,

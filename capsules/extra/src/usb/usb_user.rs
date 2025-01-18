@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! USB system call interface
 //!
 //! This capsule provides a system call interface to the USB controller.
@@ -9,7 +13,7 @@
 //! the USBC), as well as a `Grant` for managing application requests.  For
 //! example:
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use kernel::static_init;
 //!
 //! // Configure the USB controller
@@ -55,8 +59,8 @@ where
         apps: Grant<App, UpcallCount<1>, AllowRoCount<0>, AllowRwCount<0>>,
     ) -> Self {
         UsbSyscallDriver {
-            usbc_client: usbc_client,
-            apps: apps,
+            usbc_client,
+            apps,
             serving_app: OptionalCell::empty(),
         }
     }

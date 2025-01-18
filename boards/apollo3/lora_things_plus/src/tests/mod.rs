@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use crate::BOARD;
 use crate::CHIP;
 use crate::MAIN_CAP;
@@ -29,6 +33,13 @@ fn trivial_assertion() {
     debug!("    [ok]");
     run_kernel_op(10000);
 }
+
+#[cfg(feature = "atecc508a")]
+mod atecc508a;
+#[cfg(feature = "atecc508a")]
+mod csrng;
+#[cfg(feature = "atecc508a")]
+mod sha;
 
 mod environmental_sensors;
 mod multi_alarm;

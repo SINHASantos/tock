@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Interface for queue structure.
 
 pub trait Queue<T> {
@@ -19,6 +23,11 @@ pub trait Queue<T> {
 
     /// Remove the element from the front of the queue.
     fn dequeue(&mut self) -> Option<T>;
+
+    /// Remove and return one (the first) element that matches the predicate.
+    fn remove_first_matching<F>(&mut self, f: F) -> Option<T>
+    where
+        F: Fn(&T) -> bool;
 
     /// Remove all elements from the ring buffer.
     fn empty(&mut self);

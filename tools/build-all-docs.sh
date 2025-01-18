@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Licensed under the Apache License, Version 2.0 or the MIT License.
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+# Copyright Tock Contributors 2023.
+
 # Builds all of the board documentation into doc/rustdoc.
 
 set -e
@@ -21,8 +25,8 @@ else
 fi
 rm -f _COW _COW2
 
-# Make the documentation for all the boards.
-make alldoc
+# Make the documentation for all the boards, for the host's native target.
+cargo doc
 
 # Replace the default rust logo with our own Tock logo and the favicon with our
 # own favicon. Note, it is also possible to set this using a `#[doc]` attribute

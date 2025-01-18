@@ -1,3 +1,7 @@
+# Licensed under the Apache License, Version 2.0 or the MIT License.
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+# Copyright Tock Contributors 2022.
+
 [package]
 name = "stm32f4xx"
 version.workspace = true
@@ -5,6 +9,25 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-cortexm4 = { path = "../../arch/cortex-m4" }
+cortexm4f = { path = "../../arch/cortex-m4f" }
 enum_primitive = { path = "../../libraries/enum_primitive" }
 kernel = { path = "../../kernel" }
+
+[features]
+# Currently, Tock supports only these chips.
+# When a new chip is added, add its identifier here and inside
+# the chip's crate as a feature for the dependency. See
+# stm32f429zi crate for an example.
+stm32f401 = []
+stm32f412 = []
+stm32f429 = []
+stm32f446 = []
+
+# These are unused and unsupported
+stm32f410 = []
+stm32f411 = []
+stm32f413 = []
+stm32f423 = []
+
+[lints]
+workspace = true

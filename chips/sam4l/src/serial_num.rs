@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Provides a struct that enables access to the unique 120 bit serial number stored in read-only
 //! flash on the sam4l.
 
@@ -44,6 +48,6 @@ impl SerialNum {
             .rev()
             .take(8)
             .enumerate()
-            .fold(0u64, |sum, (i, &val)| sum + ((val as u64) << i * 8))
+            .fold(0u64, |sum, (i, &val)| sum + ((val as u64) << (i * 8)))
     }
 }

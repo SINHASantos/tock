@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use crate::net::ipv6::IP6Header;
 use crate::net::sixlowpan::sixlowpan_state::SixlowpanRxClient;
 
@@ -32,6 +36,8 @@ pub trait IP6RecvClient {
     fn receive(&self, header: IP6Header, payload: &[u8]);
 }
 
+/// Receiver trait for IPv6.
+///
 /// Currently only one implementation of this trait should exist,
 /// as we do not multiplex received packets based on the address.
 /// The receiver receives IP packets destined for any local address.
@@ -59,7 +65,7 @@ impl<'a> IP6RecvStruct<'a> {
     }
 }
 
-impl<'a> SixlowpanRxClient for IP6RecvStruct<'a> {
+impl SixlowpanRxClient for IP6RecvStruct<'_> {
     fn receive(&self, buf: &[u8], len: usize, result: Result<(), ErrorCode>) {
         // TODO: Drop here?
         if len > buf.len() || result != Ok(()) {

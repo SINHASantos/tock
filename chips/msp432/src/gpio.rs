@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! General Purpose Input/Output (GPIO)
 
 use core::cell::Cell;
@@ -606,7 +610,7 @@ impl<'a> gpio::Interrupt<'a> for IntPin<'a> {
     }
 }
 
-impl<'a> GpioManager<'a> {
+impl GpioManager<'_> {
     pub fn handle_interrupt(&self, port_idx: usize) {
         let regs: StaticRef<GpioRegisters> = GPIO_BASES[port_idx / 2];
         let ifgs: [u8; 2] = [regs.ifg[0].get(), regs.ifg[1].get()];

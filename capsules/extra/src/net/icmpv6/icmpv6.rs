@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! This file contains the types, structs and methods associated with the
 //! ICMPv6 header, including getter and setter methods and encode/decode
 //! functionality necessary for transmission.
@@ -45,7 +49,7 @@ impl ICMP6Header {
         ICMP6Header {
             code: 0,
             cksum: 0,
-            options: options,
+            options,
             len: 0,
         }
     }

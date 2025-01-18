@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! LSM6DSOXTR Sensor
 //!
 //! Driver for the LSM6DSOXTR 3D accelerometer and 3D gyroscope sensor.
@@ -165,8 +169,8 @@ enum State {
 #[derive(Default)]
 pub struct App {}
 
-pub struct Lsm6dsoxtrI2C<'a> {
-    i2c: &'a dyn i2c::I2CDevice,
+pub struct Lsm6dsoxtrI2C<'a, I: i2c::I2CDevice> {
+    i2c: &'a I,
     state: Cell<State>,
     config_in_progress: Cell<bool>,
     gyro_data_rate: Cell<LSM6DSOXGyroDataRate>,
@@ -183,14 +187,14 @@ pub struct Lsm6dsoxtrI2C<'a> {
     syscall_process: OptionalCell<ProcessId>,
 }
 
-impl<'a> Lsm6dsoxtrI2C<'a> {
+impl<'a, I: i2c::I2CDevice> Lsm6dsoxtrI2C<'a, I> {
     pub fn new(
-        i2c: &'a dyn i2c::I2CDevice,
+        i2c: &'a I,
         buffer: &'static mut [u8],
         grant: Grant<App, UpcallCount<1>, AllowRoCount<0>, AllowRwCount<0>>,
-    ) -> Lsm6dsoxtrI2C<'a> {
+    ) -> Lsm6dsoxtrI2C<'a, I> {
         Lsm6dsoxtrI2C {
-            i2c: i2c,
+            i2c,
             state: Cell::new(State::Idle),
             config_in_progress: Cell::new(false),
             gyro_data_rate: Cell::new(LSM6DSOXGyroDataRate::LSM6DSOX_GYRO_RATE_12_5_HZ),
@@ -376,7 +380,7 @@ impl<'a> Lsm6dsoxtrI2C<'a> {
     }
 }
 
-impl i2c::I2CClient for Lsm6dsoxtrI2C<'_> {
+impl<I: i2c::I2CDevice> i2c::I2CClient for Lsm6dsoxtrI2C<'_, I> {
     fn command_complete(&self, buffer: &'static mut [u8], status: Result<(), i2c::Error>) {
         match self.state.get() {
             State::IsPresent => {
@@ -406,7 +410,7 @@ impl i2c::I2CClient for Lsm6dsoxtrI2C<'_> {
                                 0,
                                 (
                                     into_statuscode(status.map_err(|i2c_error| i2c_error.into())),
-                                    if self.is_present.get() { 1 } else { 0 },
+                                    usize::from(self.is_present.get()),
                                     0,
                                 ),
                             )
@@ -516,7 +520,7 @@ impl i2c::I2CClient for Lsm6dsoxtrI2C<'_> {
                                 0,
                                 (
                                     into_statuscode(status.map_err(|i2c_error| i2c_error.into())),
-                                    if status == Ok(()) { 1 } else { 0 },
+                                    usize::from(status == Ok(())),
                                     0,
                                 ),
                             )
@@ -537,7 +541,7 @@ impl i2c::I2CClient for Lsm6dsoxtrI2C<'_> {
                                 0,
                                 (
                                     into_statuscode(status.map_err(|i2c_error| i2c_error.into())),
-                                    if status == Ok(()) { 1 } else { 0 },
+                                    usize::from(status == Ok(())),
                                     0,
                                 ),
                             )
@@ -549,7 +553,7 @@ impl i2c::I2CClient for Lsm6dsoxtrI2C<'_> {
     }
 }
 
-impl SyscallDriver for Lsm6dsoxtrI2C<'_> {
+impl<I: i2c::I2CDevice> SyscallDriver for Lsm6dsoxtrI2C<'_, I> {
     fn command(
         &self,
         command_num: usize,
@@ -582,10 +586,7 @@ impl SyscallDriver for Lsm6dsoxtrI2C<'_> {
             2 => {
                 if self.state.get() == State::Idle {
                     if let Some(data_rate) = LSM6DSOXAccelDataRate::from_usize(data1) {
-                        match self.set_accelerometer_power_mode(
-                            data_rate,
-                            if data2 != 0 { true } else { false },
-                        ) {
+                        match self.set_accelerometer_power_mode(data_rate, data2 != 0) {
                             Ok(()) => {
                                 self.syscall_process.set(process_id);
                                 CommandReturn::success()
@@ -603,10 +604,7 @@ impl SyscallDriver for Lsm6dsoxtrI2C<'_> {
             3 => {
                 if self.state.get() == State::Idle {
                     if let Some(data_rate) = LSM6DSOXGyroDataRate::from_usize(data1) {
-                        match self.set_gyroscope_power_mode(
-                            data_rate,
-                            if data2 != 0 { true } else { false },
-                        ) {
+                        match self.set_gyroscope_power_mode(data_rate, data2 != 0) {
                             Ok(()) => {
                                 self.syscall_process.set(process_id);
                                 CommandReturn::success()
@@ -629,7 +627,7 @@ impl SyscallDriver for Lsm6dsoxtrI2C<'_> {
     }
 }
 
-impl<'a> NineDof<'a> for Lsm6dsoxtrI2C<'a> {
+impl<'a, I: i2c::I2CDevice> NineDof<'a> for Lsm6dsoxtrI2C<'a, I> {
     fn set_client(&self, nine_dof_client: &'a dyn NineDofClient) {
         self.nine_dof_client.replace(nine_dof_client);
     }
@@ -643,7 +641,7 @@ impl<'a> NineDof<'a> for Lsm6dsoxtrI2C<'a> {
     }
 }
 
-impl<'a> sensors::TemperatureDriver<'a> for Lsm6dsoxtrI2C<'a> {
+impl<'a, I: i2c::I2CDevice> sensors::TemperatureDriver<'a> for Lsm6dsoxtrI2C<'a, I> {
     fn set_client(&self, temperature_client: &'a dyn sensors::TemperatureClient) {
         self.temperature_client.replace(temperature_client);
     }

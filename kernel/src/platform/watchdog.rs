@@ -1,6 +1,11 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Interface for configuring a watchdog
 
 /// A trait for implementing a watchdog in the kernel.
+///
 /// This trait is called from the `kernel_loop()` code to setup
 /// and maintain the watchdog timer.
 /// It is up to the specific `Chip` how it will handle watchdog interrupts.

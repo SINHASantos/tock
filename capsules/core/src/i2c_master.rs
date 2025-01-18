@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! SyscallDriver for an I2C Master interface.
 
 use enum_primitive::enum_from_primitive;
@@ -23,7 +27,7 @@ mod rw_allow {
 #[derive(Default)]
 pub struct App;
 
-pub static mut BUF: [u8; 64] = [0; 64];
+pub const BUFFER_LENGTH: usize = 64;
 
 struct Transaction {
     /// The buffer containing the bytes to transmit as it should be returned to
@@ -33,14 +37,14 @@ struct Transaction {
     read_len: OptionalCell<usize>,
 }
 
-pub struct I2CMasterDriver<'a, I: 'a + i2c::I2CMaster> {
+pub struct I2CMasterDriver<'a, I: i2c::I2CMaster<'a>> {
     i2c: &'a I,
     buf: TakeCell<'static, [u8]>,
     tx: MapCell<Transaction>,
     apps: Grant<App, UpcallCount<1>, AllowRoCount<0>, AllowRwCount<{ rw_allow::COUNT }>>,
 }
 
-impl<'a, I: 'a + i2c::I2CMaster> I2CMasterDriver<'a, I> {
+impl<'a, I: i2c::I2CMaster<'a>> I2CMasterDriver<'a, I> {
     pub fn new(
         i2c: &'a I,
         buf: &'static mut [u8],
@@ -68,14 +72,13 @@ impl<'a, I: 'a + i2c::I2CMaster> I2CMasterDriver<'a, I> {
             .and_then(|buffer| {
                 buffer.enter(|app_buffer| {
                     self.buf.take().map_or(Err(ErrorCode::NOMEM), |buffer| {
-                        app_buffer[..(wlen as usize)].copy_to_slice(&mut buffer[..(wlen as usize)]);
+                        app_buffer[..wlen].copy_to_slice(&mut buffer[..wlen]);
 
-                        let read_len: OptionalCell<usize>;
-                        if rlen == 0 {
-                            read_len = OptionalCell::empty();
+                        let read_len = if rlen == 0 {
+                            OptionalCell::empty()
                         } else {
-                            read_len = OptionalCell::new(rlen as usize);
-                        }
+                            OptionalCell::new(rlen)
+                        };
                         self.tx.put(Transaction {
                             processid,
                             read_len,
@@ -91,7 +94,7 @@ impl<'a, I: 'a + i2c::I2CMaster> I2CMasterDriver<'a, I> {
                             Cmd::WriteRead => self.i2c.write_read(addr, buffer, wlen, rlen),
                         };
                         match res {
-                            Ok(_) => Ok(()),
+                            Ok(()) => Ok(()),
                             Err((error, data)) => {
                                 self.buf.put(Some(data));
                                 Err(error.into())
@@ -116,7 +119,7 @@ pub enum Cmd {
 }
 }
 
-impl<'a, I: 'a + i2c::I2CMaster> SyscallDriver for I2CMasterDriver<'a, I> {
+impl<'a, I: i2c::I2CMaster<'a>> SyscallDriver for I2CMasterDriver<'a, I> {
     /// Setup shared buffers.
     ///
     /// ### `allow_num`
@@ -187,8 +190,8 @@ impl<'a, I: 'a + i2c::I2CMaster> SyscallDriver for I2CMasterDriver<'a, I> {
     }
 }
 
-impl<'a, I: 'a + i2c::I2CMaster> i2c::I2CHwMasterClient for I2CMasterDriver<'a, I> {
-    fn command_complete(&self, buffer: &'static mut [u8], _status: Result<(), i2c::Error>) {
+impl<'a, I: i2c::I2CMaster<'a>> i2c::I2CHwMasterClient for I2CMasterDriver<'a, I> {
+    fn command_complete(&self, buffer: &'static mut [u8], status: Result<(), i2c::Error>) {
         self.tx.take().map(|tx| {
             self.apps.enter(tx.processid, |_, kernel_data| {
                 if let Some(read_len) = tx.read_len.take() {
@@ -202,7 +205,16 @@ impl<'a, I: 'a + i2c::I2CMaster> i2c::I2CHwMasterClient for I2CMasterDriver<'a, 
                 }
 
                 // signal to driver that tx complete
-                kernel_data.schedule_upcall(0, (0, 0, 0)).ok();
+                kernel_data
+                    .schedule_upcall(
+                        0,
+                        (
+                            kernel::errorcode::into_statuscode(status.map_err(|e| e.into())),
+                            0,
+                            0,
+                        ),
+                    )
+                    .ok();
             })
         });
 

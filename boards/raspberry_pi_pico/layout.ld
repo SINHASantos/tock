@@ -1,3 +1,7 @@
+/* Licensed under the Apache License, Version 2.0 or the MIT License. */
+/* SPDX-License-Identifier: Apache-2.0 OR MIT                         */
+/* Copyright Tock Contributors 2023.                                  */
+
 MEMORY
 {
   /* uncomment this to boot from RAM */
@@ -22,7 +26,7 @@ SECTIONS {
     {
         KEEP (*(.flash_bootloader));
         . = ALIGN (256);
-    } > rom 
+    } > rom
 }
 
-INCLUDE ../kernel_layout.ld
+INCLUDE tock_kernel_layout.ld

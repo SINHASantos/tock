@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Generic component for initializing a USB device given a USBController.
 //!
 //! This provides one Component, UsbComponent, which implements
@@ -70,7 +74,7 @@ impl<U: UsbController<'static> + 'static> Component for UsbComponent<U> {
 
         // Configure the USB controller
         let usb_client = s.0.write(capsules_extra::usb::usbc_client::Client::new(
-            &self.usbc,
+            self.usbc,
             capsules_extra::usb::usbc_client::MAX_CTRL_PACKET_SIZE_SAM4L,
         ));
         self.usbc.set_client(usb_client);

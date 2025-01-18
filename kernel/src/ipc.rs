@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Inter-process communication mechanism for Tock.
 //!
 //! This is a special syscall driver that allows userspace applications to
@@ -69,6 +73,13 @@ impl<const NUM_PROCS: u8> IPC<NUM_PROCS> {
     ) -> Result<(), process::Error> {
         let schedule_on_id = schedule_on.index().ok_or(process::Error::NoSuchApp)?;
         let called_from_id = called_from.index().ok_or(process::Error::NoSuchApp)?;
+
+        // Verify that IPC is not trying to share with the same app. If so, this
+        // will cause a double grant enter if we don't return now.
+        if schedule_on_id == called_from_id {
+            return Err(process::Error::AlreadyInUse);
+        }
+
         self.data.enter(schedule_on, |_, schedule_on_data| {
             self.data.enter(called_from, |_, called_from_data| {
                 // If the other app shared a buffer with us, make
@@ -111,7 +122,7 @@ impl<const NUM_PROCS: u8> SyscallDriver for IPC<NUM_PROCS> {
     ///
     /// ### `command_num`
     ///
-    /// - `0`: Driver check, always returns Ok(())
+    /// - `0`: Driver existence check, always returns Ok(())
     /// - `1`: Perform discovery on the package name passed to `allow_readonly`. Returns the
     ///        service descriptor if the service is found, otherwise returns an error.
     /// - `2`: Notify a service previously discovered to have the service descriptor in

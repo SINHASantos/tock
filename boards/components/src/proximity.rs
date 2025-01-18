@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component for any proximity sensor.
 //!
 //! Usage
@@ -34,9 +38,9 @@ impl<P: hil::sensors::ProximityDriver<'static>> ProximityComponent<P> {
         driver_num: usize,
     ) -> ProximityComponent<P> {
         ProximityComponent {
+            sensor,
             board_kernel,
             driver_num,
-            sensor,
         }
     }
 }

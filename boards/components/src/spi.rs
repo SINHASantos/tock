@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Components for SPI.
 //!
 //! This provides four components.
@@ -24,6 +28,7 @@
 // Author: Philip Levis <pal@cs.stanford.edu>
 // Last modified: 6/20/2018
 
+use core::marker::PhantomData;
 use core::mem::MaybeUninit;
 
 use capsules_core::spi_controller::{Spi, DEFAULT_READ_BUF_LENGTH, DEFAULT_WRITE_BUF_LENGTH};
@@ -104,35 +109,40 @@ macro_rules! spi_peripheral_component_static {
     };};
 }
 
-pub struct SpiMuxComponent<S: 'static + spi::SpiMaster> {
+pub struct SpiMuxComponent<S: 'static + spi::SpiMaster<'static>> {
     spi: &'static S,
 }
 
-pub struct SpiSyscallComponent<S: 'static + spi::SpiMaster> {
+pub struct SpiSyscallComponent<S: 'static + spi::SpiMaster<'static>> {
     board_kernel: &'static kernel::Kernel,
     spi_mux: &'static MuxSpiMaster<'static, S>,
     chip_select: S::ChipSelect,
     driver_num: usize,
 }
 
-pub struct SpiSyscallPComponent<S: 'static + spi::SpiSlave> {
+pub struct SpiSyscallPComponent<S: 'static + spi::SpiSlave<'static>> {
     board_kernel: &'static kernel::Kernel,
     spi_slave: &'static S,
     driver_num: usize,
 }
 
-pub struct SpiComponent<S: 'static + spi::SpiMaster> {
+pub struct SpiComponent<
+    S: 'static + spi::SpiMaster<'static>,
+    CS: spi::cs::IntoChipSelect<S::ChipSelect, AP>,
+    AP: spi::cs::ChipSelectActivePolarity,
+> {
     spi_mux: &'static MuxSpiMaster<'static, S>,
-    chip_select: S::ChipSelect,
+    chip_select: CS,
+    _phantom: PhantomData<AP>,
 }
 
-impl<S: 'static + spi::SpiMaster> SpiMuxComponent<S> {
+impl<S: 'static + spi::SpiMaster<'static>> SpiMuxComponent<S> {
     pub fn new(spi: &'static S) -> Self {
         Self { spi }
     }
 }
 
-impl<S: 'static + spi::SpiMaster> Component for SpiMuxComponent<S> {
+impl<S: 'static + spi::SpiMaster<'static>> Component for SpiMuxComponent<S> {
     type StaticInput = &'static mut MaybeUninit<MuxSpiMaster<'static, S>>;
     type Output = &'static MuxSpiMaster<'static, S>;
 
@@ -150,7 +160,7 @@ impl<S: 'static + spi::SpiMaster> Component for SpiMuxComponent<S> {
     }
 }
 
-impl<S: 'static + spi::SpiMaster> SpiSyscallComponent<S> {
+impl<S: 'static + spi::SpiMaster<'static>> SpiSyscallComponent<S> {
     pub fn new(
         board_kernel: &'static kernel::Kernel,
         mux: &'static MuxSpiMaster<'static, S>,
@@ -158,15 +168,15 @@ impl<S: 'static + spi::SpiMaster> SpiSyscallComponent<S> {
         driver_num: usize,
     ) -> Self {
         SpiSyscallComponent {
-            board_kernel: board_kernel,
+            board_kernel,
             spi_mux: mux,
-            chip_select: chip_select,
+            chip_select,
             driver_num,
         }
     }
 }
 
-impl<S: 'static + spi::SpiMaster> Component for SpiSyscallComponent<S> {
+impl<S: 'static + spi::SpiMaster<'static>> Component for SpiSyscallComponent<S> {
     type StaticInput = (
         &'static mut MaybeUninit<VirtualSpiMasterDevice<'static, S>>,
         &'static mut MaybeUninit<Spi<'static, VirtualSpiMasterDevice<'static, S>>>,
@@ -197,7 +207,7 @@ impl<S: 'static + spi::SpiMaster> Component for SpiSyscallComponent<S> {
     }
 }
 
-impl<S: 'static + spi::SpiSlave> SpiSyscallPComponent<S> {
+impl<S: 'static + spi::SpiSlave<'static>> SpiSyscallPComponent<S> {
     pub fn new(
         board_kernel: &'static kernel::Kernel,
         slave: &'static S,
@@ -211,7 +221,7 @@ impl<S: 'static + spi::SpiSlave> SpiSyscallPComponent<S> {
     }
 }
 
-impl<S: 'static + spi::SpiSlave> Component for SpiSyscallPComponent<S> {
+impl<S: 'static + spi::SpiSlave<'static>> Component for SpiSyscallPComponent<S> {
     type StaticInput = (
         &'static mut MaybeUninit<virtual_spi::SpiSlaveDevice<'static, S>>,
         &'static mut MaybeUninit<SpiPeripheral<'static, virtual_spi::SpiSlaveDevice<'static, S>>>,
@@ -242,34 +252,47 @@ impl<S: 'static + spi::SpiSlave> Component for SpiSyscallPComponent<S> {
     }
 }
 
-impl<S: 'static + spi::SpiMaster> SpiComponent<S> {
-    pub fn new(mux: &'static MuxSpiMaster<'static, S>, chip_select: S::ChipSelect) -> Self {
+impl<
+        S: 'static + spi::SpiMaster<'static>,
+        CS: spi::cs::IntoChipSelect<S::ChipSelect, AP>,
+        AP: spi::cs::ChipSelectActivePolarity,
+    > SpiComponent<S, CS, AP>
+{
+    pub fn new(mux: &'static MuxSpiMaster<'static, S>, chip_select: CS) -> Self {
         SpiComponent {
             spi_mux: mux,
-            chip_select: chip_select,
+            _phantom: PhantomData,
+            chip_select,
         }
     }
 }
 
-impl<S: 'static + spi::SpiMaster> Component for SpiComponent<S> {
+impl<
+        S: 'static + spi::SpiMaster<'static>,
+        CS: spi::cs::IntoChipSelect<S::ChipSelect, AP>,
+        AP: spi::cs::ChipSelectActivePolarity,
+    > Component for SpiComponent<S, CS, AP>
+{
     type StaticInput = &'static mut MaybeUninit<VirtualSpiMasterDevice<'static, S>>;
     type Output = &'static VirtualSpiMasterDevice<'static, S>;
 
     fn finalize(self, static_buffer: Self::StaticInput) -> Self::Output {
-        let spi_device =
-            static_buffer.write(VirtualSpiMasterDevice::new(self.spi_mux, self.chip_select));
+        let spi_device = static_buffer.write(VirtualSpiMasterDevice::new(
+            self.spi_mux,
+            self.chip_select.into_cs(),
+        ));
         spi_device.setup();
         spi_device
     }
 }
 
-pub struct SpiPeripheralComponent<S: 'static + spi::SpiSlave> {
+pub struct SpiPeripheralComponent<S: 'static + spi::SpiSlave<'static>> {
     board_kernel: &'static kernel::Kernel,
     device: &'static S,
     driver_num: usize,
 }
 
-impl<S: 'static + spi::SpiSlave> SpiPeripheralComponent<S> {
+impl<S: 'static + spi::SpiSlave<'static>> SpiPeripheralComponent<S> {
     pub fn new(
         board_kernel: &'static kernel::Kernel,
         device: &'static S,
@@ -283,7 +306,7 @@ impl<S: 'static + spi::SpiSlave> SpiPeripheralComponent<S> {
     }
 }
 
-impl<S: 'static + spi::SpiSlave + kernel::hil::spi::SpiSlaveDevice> Component
+impl<S: 'static + spi::SpiSlave<'static> + kernel::hil::spi::SpiSlaveDevice<'static>> Component
     for SpiPeripheralComponent<S>
 {
     type StaticInput = &'static mut MaybeUninit<SpiPeripheral<'static, S>>;

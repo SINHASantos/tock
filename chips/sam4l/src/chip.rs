@@ -1,9 +1,13 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Interrupt mapping and DMA channel setup.
 
 use crate::pm;
 
 use core::fmt::Write;
-use cortexm4::{self, CortexM4, CortexMVariant};
+use cortexm4::{CortexM4, CortexMVariant};
 use kernel::platform::chip::{Chip, InterruptService};
 
 pub struct Sam4l<I: InterruptService + 'static> {
@@ -25,12 +29,13 @@ impl<I: InterruptService + 'static> Sam4l<I> {
 }
 
 /// This struct, when initialized, instantiates all peripheral drivers for the apollo3.
+///
 /// If a board wishes to use only a subset of these peripherals, this
 /// should not be used or imported, and a modified version should be
 /// constructed manually in main.rs.
 pub struct Sam4lDefaultPeripherals {
     pub acifc: crate::acifc::Acifc<'static>,
-    pub adc: crate::adc::Adc,
+    pub adc: crate::adc::Adc<'static>,
     pub aes: crate::aes::Aes<'static>,
     pub ast: crate::ast::Ast<'static>,
     pub crccu: crate::crccu::Crccu<'static>,
@@ -42,11 +47,11 @@ pub struct Sam4lDefaultPeripherals {
     pub pa: crate::gpio::Port<'static>,
     pub pb: crate::gpio::Port<'static>,
     pub pc: crate::gpio::Port<'static>,
-    pub i2c0: crate::i2c::I2CHw,
-    pub i2c1: crate::i2c::I2CHw,
-    pub i2c2: crate::i2c::I2CHw,
-    pub i2c3: crate::i2c::I2CHw,
-    pub spi: crate::spi::SpiHw,
+    pub i2c0: crate::i2c::I2CHw<'static>,
+    pub i2c1: crate::i2c::I2CHw<'static>,
+    pub i2c2: crate::i2c::I2CHw<'static>,
+    pub i2c3: crate::i2c::I2CHw<'static>,
+    pub spi: crate::spi::SpiHw<'static>,
     pub trng: crate::trng::Trng<'static>,
     pub usart0: crate::usart::USART<'static>,
     pub usart1: crate::usart::USART<'static>,

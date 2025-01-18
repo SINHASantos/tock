@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use core::cell::Cell;
 
 use kernel::hil::adc;
@@ -14,7 +18,7 @@ enum State {
 }
 
 pub struct AdcMicrophone<'a, P: gpio::Pin> {
-    adc: &'a dyn adc::AdcChannel,
+    adc: &'a dyn adc::AdcChannel<'a>,
     enable_pin: Option<&'a P>,
     spl_client: OptionalCell<&'a dyn SoundPressureClient>,
     spl_buffer: TakeCell<'a, [u16]>,
@@ -24,7 +28,7 @@ pub struct AdcMicrophone<'a, P: gpio::Pin> {
 
 impl<'a, P: gpio::Pin> AdcMicrophone<'a, P> {
     pub fn new(
-        adc: &'a dyn adc::AdcChannel,
+        adc: &'a dyn adc::AdcChannel<'a>,
         enable_pin: Option<&'a P>,
         spl_buffer: &'a mut [u16],
     ) -> AdcMicrophone<'a, P> {
@@ -46,7 +50,7 @@ impl<'a, P: gpio::Pin> AdcMicrophone<'a, P> {
                 .iter()
                 .map(|v| if *v > avg { v - avg } else { 0 })
                 .fold(0, |a, v| if a > v { a } else { v });
-            let mut conv = (max as f32) / (((1 << 15) - 1) as f32) * 9 as f32;
+            let mut conv = (max as f32) / (((1 << 15) - 1) as f32) * 9_f32;
             conv = 20f32 * math::log10(conv / 0.00002f32);
             conv as u8
         });
@@ -82,7 +86,7 @@ impl<'a, P: gpio::Pin> SoundPressure<'a> for AdcMicrophone<'a, P> {
     }
 }
 
-impl<'a, P: gpio::Pin> adc::Client for AdcMicrophone<'a, P> {
+impl<P: gpio::Pin> adc::Client for AdcMicrophone<'_, P> {
     fn sample_ready(&self, sample: u16) {
         if self.state.get() == State::ReadingSPL {
             if self.spl_buffer.map_or(false, |buffer| {

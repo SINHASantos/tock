@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Utility functions used in the 6LoWPAN implementation
 
 /// Verifies that a prefix given in the form of a byte array slice is valid with
@@ -9,7 +13,7 @@
 pub fn verify_prefix_len(prefix: &[u8], prefix_len: u8) -> bool {
     let full_bytes = (prefix_len / 8) as usize;
     let remaining_bits = prefix_len % 8;
-    let bytes = full_bytes + if remaining_bits != 0 { 1 } else { 0 };
+    let bytes = full_bytes + usize::from(remaining_bits != 0);
 
     if bytes > prefix.len() {
         return false;
@@ -32,7 +36,7 @@ pub fn verify_prefix_len(prefix: &[u8], prefix_len: u8) -> bool {
 pub fn matches_prefix(buf1: &[u8], buf2: &[u8], prefix_len: u8) -> bool {
     let full_bytes = (prefix_len / 8) as usize;
     let remaining_bits = prefix_len % 8;
-    let bytes = full_bytes + if remaining_bits != 0 { 1 } else { 0 };
+    let bytes = full_bytes + usize::from(remaining_bits != 0);
 
     if bytes > buf1.len() || bytes > buf2.len() {
         return false;

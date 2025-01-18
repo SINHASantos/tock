@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component for Buttons.
 //!
 //! Usage
@@ -80,6 +84,8 @@ macro_rules! button_component_static {
     };};
 }
 
+pub type ButtonComponentType<IP> = capsules_core::button::Button<'static, IP>;
+
 pub struct ButtonComponent<IP: 'static + gpio::InterruptPin<'static>> {
     board_kernel: &'static kernel::Kernel,
     driver_num: usize,
@@ -101,7 +107,7 @@ impl<IP: 'static + gpio::InterruptPin<'static>> ButtonComponent<IP> {
         )],
     ) -> Self {
         Self {
-            board_kernel: board_kernel,
+            board_kernel,
             driver_num,
             button_pins,
         }

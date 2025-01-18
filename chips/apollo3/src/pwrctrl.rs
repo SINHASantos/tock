@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Power Control driver.
 
 use kernel::utilities::registers::interfaces::{ReadWriteable, Readable};
@@ -83,6 +87,12 @@ impl PwrCtrl {
         regs.devpwren.modify(DEVPWREN::PWRUART0::SET);
     }
 
+    pub fn enable_ios(&self) {
+        let regs = self.registers;
+
+        regs.devpwren.modify(DEVPWREN::PWRIOS::SET);
+    }
+
     pub fn enable_iom0(&self) {
         let regs = self.registers;
 
@@ -105,6 +115,12 @@ impl PwrCtrl {
         let regs = self.registers;
 
         regs.devpwren.modify(DEVPWREN::PWRIOM3::SET);
+    }
+
+    pub fn enable_iom4(&self) {
+        let regs = self.registers;
+
+        regs.devpwren.modify(DEVPWREN::PWRIOM4::SET);
     }
 
     pub fn enable_ble(&self) {

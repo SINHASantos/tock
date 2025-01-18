@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! TimG Group driver.
 
 use core::marker::PhantomData;
@@ -289,6 +293,6 @@ impl<'a, F: time::Frequency, const C3: bool> Alarm<'a> for TimG<'a, F, C3> {
     }
 
     fn minimum_dt(&self) -> Self::Ticks {
-        Self::Ticks::from(1 as u64)
+        Self::Ticks::from(1_u64)
     }
 }

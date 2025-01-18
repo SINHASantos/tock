@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! A bare-bones client of the USB hardware interface.
 //!
 //! It responds to standard device requests and can be enumerated.
@@ -17,11 +21,11 @@ use kernel::utilities::cells::VolatileCell;
 const VENDOR_ID: u16 = 0x6667;
 const PRODUCT_ID: u16 = 0xabcd;
 
-static LANGUAGES: &'static [u16; 1] = &[
+static LANGUAGES: &[u16; 1] = &[
     0x0409, // English (United States)
 ];
 
-static STRINGS: &'static [&'static str] = &[
+static STRINGS: &[&str] = &[
     "XYZ Corp.",      // Manufacturer
     "The Zorpinator", // Product
     "Serial No. 5",   // Serial number
@@ -236,7 +240,7 @@ impl<'a, C: hil::usb::UsbController<'a>> hil::usb::Client<'a> for Client<'a, C> 
                 // Consume a packet from the endpoint buffer
                 let new_len = packet_bytes as usize;
                 let current_len = self.echo_len.get();
-                let total_len = current_len + new_len as usize;
+                let total_len = current_len + new_len;
 
                 if total_len > self.echo_buf.len() {
                     // The packet won't fit in our little buffer.  We'll have

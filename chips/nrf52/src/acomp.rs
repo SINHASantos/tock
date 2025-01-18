@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Analog Comparator Peripheral Driver, for nrf52
 //!
 //! Partially based on sam4l implementation of an analog comparator.
@@ -29,6 +33,8 @@ use kernel::utilities::registers::{
 use kernel::utilities::StaticRef;
 use kernel::ErrorCode;
 
+/// Analog comparator channels.
+///
 /// The nrf52840 only has one analog comparator, so it does need channels
 /// However, the HIL was designed to support having multiple comparators, each
 /// one with a separate channel. So we create a dummy channel with only
@@ -217,7 +223,7 @@ pub struct Comparator<'a> {
     client: OptionalCell<&'a dyn analog_comparator::Client>,
 }
 
-impl<'a> Comparator<'a> {
+impl Comparator<'_> {
     pub const fn new() -> Self {
         Comparator {
             registers: ACOMP_BASE,

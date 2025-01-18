@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Chip trait setup.
 
 use core::fmt::Write;
@@ -9,8 +13,10 @@ use crate::clocks::Clocks;
 use crate::gpio::{RPGpio, RPPins, SIO};
 use crate::i2c;
 use crate::interrupts;
+use crate::pio::Pio;
 use crate::pwm;
 use crate::resets::Resets;
+use crate::rtc;
 use crate::spi;
 use crate::sysinfo;
 use crate::timer::RPTimer;
@@ -41,14 +47,14 @@ impl<'a, I: InterruptService> Rp2040<'a, I> {
             mpu: cortexm0p::mpu::MPU::new(),
             userspace_kernel_boundary: cortexm0p::syscall::SysCall::new(),
             interrupt_service,
-            sio: sio,
+            sio,
             processor0_interrupt_mask: interrupt_mask!(interrupts::SIO_IRQ_PROC1),
             processor1_interrupt_mask: interrupt_mask!(interrupts::SIO_IRQ_PROC0),
         }
     }
 }
 
-impl<'a, I: InterruptService> Chip for Rp2040<'a, I> {
+impl<I: InterruptService> Chip for Rp2040<'_, I> {
     type MPU = cortexm0p::mpu::MPU;
     type UserspaceKernelBoundary = cortexm0p::syscall::SysCall;
 
@@ -114,10 +120,12 @@ impl<'a, I: InterruptService> Chip for Rp2040<'a, I> {
 }
 
 pub struct Rp2040DefaultPeripherals<'a> {
-    pub adc: adc::Adc,
+    pub adc: adc::Adc<'a>,
     pub clocks: Clocks,
-    pub i2c0: i2c::I2c<'a>,
+    pub i2c0: i2c::I2c<'a, 'a>,
     pub pins: RPPins<'a>,
+    pub pio0: Pio,
+    pub pio1: Pio,
     pub pwm: pwm::Pwm<'a>,
     pub resets: Resets,
     pub sio: SIO,
@@ -129,15 +137,18 @@ pub struct Rp2040DefaultPeripherals<'a> {
     pub usb: usb::UsbCtrl<'a>,
     pub watchdog: Watchdog<'a>,
     pub xosc: Xosc,
+    pub rtc: rtc::Rtc<'a>,
 }
 
-impl<'a> Rp2040DefaultPeripherals<'a> {
+impl Rp2040DefaultPeripherals<'_> {
     pub fn new() -> Self {
         Self {
             adc: adc::Adc::new(),
             clocks: Clocks::new(),
             i2c0: i2c::I2c::new_i2c0(),
             pins: RPPins::new(),
+            pio0: Pio::new_pio0(),
+            pio1: Pio::new_pio1(),
             pwm: pwm::Pwm::new(),
             resets: Resets::new(),
             sio: SIO::new(),
@@ -149,6 +160,7 @@ impl<'a> Rp2040DefaultPeripherals<'a> {
             usb: usb::UsbCtrl::new(),
             watchdog: Watchdog::new(),
             xosc: Xosc::new(),
+            rtc: rtc::Rtc::new(),
         }
     }
 
@@ -159,14 +171,23 @@ impl<'a> Rp2040DefaultPeripherals<'a> {
         self.uart0.set_clocks(&self.clocks);
         kernel::deferred_call::DeferredCallClient::register(&self.uart0);
         kernel::deferred_call::DeferredCallClient::register(&self.uart1);
+        kernel::deferred_call::DeferredCallClient::register(&self.rtc);
         self.i2c0.resolve_dependencies(&self.clocks, &self.resets);
         self.usb.set_gpio(self.pins.get_pin(RPGpio::GPIO15));
+        self.rtc.set_clocks(&self.clocks);
     }
 }
 
 impl InterruptService for Rp2040DefaultPeripherals<'_> {
     unsafe fn service_interrupt(&self, interrupt: u32) -> bool {
         match interrupt {
+            interrupts::PIO0_IRQ_0 => {
+                // As the current PIO interface does not provide support for interrupts, they are
+                // simply ignored.
+                //
+                // Note that PIO interrupts are raised only during unit tests.
+                true
+            }
             interrupts::TIMER_IRQ_0 => {
                 self.timer.handle_interrupt();
                 true
@@ -199,6 +220,7 @@ impl InterruptService for Rp2040DefaultPeripherals<'_> {
                 self.pins.handle_interrupt();
                 true
             }
+
             interrupts::I2C0_IRQ => {
                 self.i2c0.handle_interrupt();
                 true

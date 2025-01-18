@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Implementation of the SAM4L hardware watchdog timer.
 
 use core::cell::Cell;
@@ -102,8 +106,7 @@ register_bitfields![u32,
 
 // Page 59 of SAM4L data sheet
 const WDT_BASE: *mut WdtRegisters = 0x400F0C00 as *mut WdtRegisters;
-const WDT_REGS: StaticRef<WdtRegisters> =
-    unsafe { StaticRef::new(WDT_BASE as *const WdtRegisters) };
+const WDT_REGS: StaticRef<WdtRegisters> = unsafe { StaticRef::new(WDT_BASE.cast_const()) };
 
 pub struct Wdt {
     enabled: Cell<bool>,

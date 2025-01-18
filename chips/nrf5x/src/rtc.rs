@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! RTC driver, nRF5X-family
 
 use core::cell::Cell;
@@ -91,7 +95,7 @@ pub struct Rtc<'a> {
     enabled: Cell<bool>,
 }
 
-impl<'a> Rtc<'a> {
+impl Rtc<'_> {
     pub const fn new() -> Self {
         Self {
             registers: RTC1_BASE,

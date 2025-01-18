@@ -1,4 +1,9 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use core::fmt::{self, Write};
+use core::ptr::addr_of;
 
 use kernel::debug::{self, IoWrite};
 use kernel::hil::{
@@ -30,10 +35,11 @@ impl<'a> Writer<'a> {
 }
 
 impl IoWrite for Writer<'_> {
-    fn write(&mut self, bytes: &[u8]) {
+    fn write(&mut self, bytes: &[u8]) -> usize {
         for byte in bytes {
             self.output.send_byte(*byte);
         }
+        bytes.len()
     }
 }
 
@@ -57,8 +63,8 @@ unsafe fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
         &mut writer,
         panic_info,
         &cortexm7::support::nop,
-        &crate::PROCESSES,
-        &crate::CHIP,
-        &crate::PROCESS_PRINTER,
+        &*addr_of!(crate::PROCESSES),
+        &*addr_of!(crate::CHIP),
+        &*addr_of!(crate::PROCESS_PRINTER),
     )
 }

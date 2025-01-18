@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Module containing the [`LocalRegisterCopy`] type. Please refer to
 //! its documentation.
 
@@ -36,7 +40,7 @@ pub struct LocalRegisterCopy<T: UIntLike, R: RegisterLongName = ()> {
 impl<T: UIntLike, R: RegisterLongName> LocalRegisterCopy<T, R> {
     pub const fn new(value: T) -> Self {
         LocalRegisterCopy {
-            value: value,
+            value,
             associated_register: PhantomData,
         }
     }
@@ -110,6 +114,17 @@ impl<T: UIntLike, R: RegisterLongName> LocalRegisterCopy<T, R> {
     #[inline]
     pub fn bitand(&self, rhs: T) -> LocalRegisterCopy<T, R> {
         LocalRegisterCopy::new(self.value & rhs)
+    }
+
+    #[inline]
+    pub fn debug(&self) -> crate::debug::RegisterDebugValue<T, R>
+    where
+        R: crate::debug::RegisterDebugInfo<T>,
+    {
+        crate::debug::RegisterDebugValue {
+            data: self.get(),
+            _reg: core::marker::PhantomData,
+        }
     }
 }
 

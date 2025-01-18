@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! This file contains the structs and methods associated with the UDP header.
 //! This includes getters and setters for the various header fields, as well
 //! as the standard encode/decode functionality required for serializing
@@ -10,14 +14,15 @@ use crate::net::stream::SResult;
 // Note: All UDP Header fields are stored in network byte order
 
 /// The `UDPHeader` struct follows the layout for the UDP packet header.
+///
 /// Note that the implementation of this struct provides getters and setters
 /// for the various fields of the header, to avoid confusion with endian-ness.
 #[derive(Copy, Clone, Debug)]
 pub struct UDPHeader {
-    pub src_port: u16,
-    pub dst_port: u16,
-    pub len: u16,
-    pub cksum: u16,
+    src_port: u16,
+    dst_port: u16,
+    len: u16,
+    cksum: u16,
 }
 
 impl Default for UDPHeader {

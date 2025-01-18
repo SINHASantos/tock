@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Flash Controller (FLCTL)
 
 use kernel::utilities::registers::interfaces::ReadWriteable;
@@ -796,6 +800,8 @@ register_bitfields![u32,
     ]
 ];
 
+/// Wait states.
+///
 /// If the clock runs with a higher frequency than the flash is able to operate, it's possible to
 /// configure a certain amount of wait-states which stall the CPU in order to access the data within
 /// the flash in a reliable way.

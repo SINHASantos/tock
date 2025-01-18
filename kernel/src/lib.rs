@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Core Tock Kernel
 //!
 //! The kernel crate implements the core features of Tock as well as shared
@@ -85,12 +89,19 @@
 //!    this use case. It is likely we will have to create new interfaces as new
 //!    use cases are discovered.
 
-#![feature(core_intrinsics)]
 #![warn(unreachable_pub)]
 #![no_std]
 
-// Define the kernel major and minor versions.
+/// Kernel major version.
+///
+/// This is compiled with the crate to enable for checking of compatibility with
+/// loaded apps. Both major and minor version constants are updated during a
+/// release.
 pub const KERNEL_MAJOR_VERSION: u16 = 2;
+/// Kernel minor version.
+///
+/// This is compiled with the crate to enable for checking of compatibility with
+/// loaded apps.
 pub const KERNEL_MINOR_VERSION: u16 = 1;
 
 pub mod capabilities;
@@ -116,6 +127,7 @@ pub mod utilities;
 mod config;
 mod kernel;
 mod memop;
+mod process_binary;
 mod process_loading;
 mod process_policies;
 mod process_printer;

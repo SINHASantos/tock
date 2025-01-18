@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! SyscallDriver for the ST LPS25HB pressure sensor.
 //!
 //! <http://www.st.com/en/mems-and-sensors/lps25hb.html>
@@ -5,7 +9,7 @@
 //! Usage
 //! -----
 //!
-//! ```rust
+//! ```rust,ignore
 //! let buffer = static_init!([u8; capsules::lps25hb::BUF_LEN], [0; capsules::lps25hb::BUF_LEN]);
 //! let lps25hb_i2c = static_init!(I2CDevice, I2CDevice::new(i2c_bus, 0x5C));
 //! let lps25hb = static_init!(
@@ -99,8 +103,8 @@ enum State {
 #[derive(Default)]
 pub struct App {}
 
-pub struct LPS25HB<'a> {
-    i2c: &'a dyn i2c::I2CDevice,
+pub struct LPS25HB<'a, I: i2c::I2CDevice> {
+    i2c: &'a I,
     interrupt_pin: &'a dyn gpio::InterruptPin<'a>,
     state: Cell<State>,
     buffer: TakeCell<'static, [u8]>,
@@ -108,17 +112,17 @@ pub struct LPS25HB<'a> {
     owning_process: OptionalCell<ProcessId>,
 }
 
-impl<'a> LPS25HB<'a> {
+impl<'a, I: i2c::I2CDevice> LPS25HB<'a, I> {
     pub fn new(
-        i2c: &'a dyn i2c::I2CDevice,
+        i2c: &'a I,
         interrupt_pin: &'a dyn gpio::InterruptPin<'a>,
         buffer: &'static mut [u8],
         apps: Grant<App, UpcallCount<1>, AllowRoCount<0>, AllowRwCount<0>>,
     ) -> Self {
         // setup and return struct
         Self {
-            i2c: i2c,
-            interrupt_pin: interrupt_pin,
+            i2c,
+            interrupt_pin,
             state: Cell::new(State::Idle),
             buffer: TakeCell::new(buffer),
             apps,
@@ -171,13 +175,13 @@ impl<'a> LPS25HB<'a> {
     }
 }
 
-impl i2c::I2CClient for LPS25HB<'_> {
+impl<I: i2c::I2CDevice> i2c::I2CClient for LPS25HB<'_, I> {
     fn command_complete(&self, buffer: &'static mut [u8], status: Result<(), i2c::Error>) {
         if status != Ok(()) {
             self.state.set(State::Idle);
             self.buffer.replace(buffer);
             self.owning_process.map(|pid| {
-                let _ = self.apps.enter(*pid, |_app, upcalls| {
+                let _ = self.apps.enter(pid, |_app, upcalls| {
                     upcalls.schedule_upcall(0, (0, 0, 0)).ok();
                 });
             });
@@ -203,7 +207,7 @@ impl i2c::I2CClient for LPS25HB<'_> {
                     self.state.set(State::Idle);
                     self.buffer.replace(buffer);
                     self.owning_process.map(|pid| {
-                        let _ = self.apps.enter(*pid, |_app, upcalls| {
+                        let _ = self.apps.enter(pid, |_app, upcalls| {
                             upcalls
                                 .schedule_upcall(0, (into_statuscode(Err(error.into())), 0, 0))
                                 .ok();
@@ -218,7 +222,7 @@ impl i2c::I2CClient for LPS25HB<'_> {
                     self.state.set(State::Idle);
                     self.buffer.replace(buffer);
                     self.owning_process.map(|pid| {
-                        let _ = self.apps.enter(*pid, |_app, upcalls| {
+                        let _ = self.apps.enter(pid, |_app, upcalls| {
                             upcalls
                                 .schedule_upcall(0, (into_statuscode(Err(error.into())), 0, 0))
                                 .ok();
@@ -237,7 +241,7 @@ impl i2c::I2CClient for LPS25HB<'_> {
                     self.state.set(State::Idle);
                     self.buffer.replace(buffer);
                     self.owning_process.map(|pid| {
-                        let _ = self.apps.enter(*pid, |_app, upcalls| {
+                        let _ = self.apps.enter(pid, |_app, upcalls| {
                             upcalls
                                 .schedule_upcall(0, (into_statuscode(Err(error.into())), 0, 0))
                                 .ok();
@@ -252,7 +256,7 @@ impl i2c::I2CClient for LPS25HB<'_> {
                     self.state.set(State::Idle);
                     self.buffer.replace(buffer);
                     self.owning_process.map(|pid| {
-                        let _ = self.apps.enter(*pid, |_app, upcalls| {
+                        let _ = self.apps.enter(pid, |_app, upcalls| {
                             upcalls
                                 .schedule_upcall(0, (into_statuscode(Err(error.into())), 0, 0))
                                 .ok();
@@ -263,15 +267,14 @@ impl i2c::I2CClient for LPS25HB<'_> {
                 }
             }
             State::GotMeasurement => {
-                let pressure = (((buffer[2] as u32) << 16)
-                    | ((buffer[1] as u32) << 8)
-                    | (buffer[0] as u32)) as u32;
+                let pressure =
+                    ((buffer[2] as u32) << 16) | ((buffer[1] as u32) << 8) | (buffer[0] as u32);
 
                 // Returned as microbars
                 let pressure_ubar = (pressure * 1000) / 4096;
 
                 self.owning_process.map(|pid| {
-                    let _ = self.apps.enter(*pid, |_app, upcalls| {
+                    let _ = self.apps.enter(pid, |_app, upcalls| {
                         upcalls
                             .schedule_upcall(0, (pressure_ubar as usize, 0, 0))
                             .ok();
@@ -285,7 +288,7 @@ impl i2c::I2CClient for LPS25HB<'_> {
                     self.state.set(State::Idle);
                     self.buffer.replace(buffer);
                     self.owning_process.map(|pid| {
-                        let _ = self.apps.enter(*pid, |_app, upcalls| {
+                        let _ = self.apps.enter(pid, |_app, upcalls| {
                             upcalls
                                 .schedule_upcall(0, (into_statuscode(Err(error.into())), 0, 0))
                                 .ok();
@@ -306,7 +309,7 @@ impl i2c::I2CClient for LPS25HB<'_> {
     }
 }
 
-impl gpio::Client for LPS25HB<'_> {
+impl<I: i2c::I2CDevice> gpio::Client for LPS25HB<'_, I> {
     fn fired(&self) {
         self.buffer.take().map(|buf| {
             // turn on i2c to send commands
@@ -325,7 +328,7 @@ impl gpio::Client for LPS25HB<'_> {
     }
 }
 
-impl SyscallDriver for LPS25HB<'_> {
+impl<I: i2c::I2CDevice> SyscallDriver for LPS25HB<'_, I> {
     fn command(
         &self,
         command_num: usize,
@@ -342,7 +345,7 @@ impl SyscallDriver for LPS25HB<'_> {
         // some (alive) process
         let match_or_empty_or_nonexistant = self.owning_process.map_or(true, |current_process| {
             self.apps
-                .enter(*current_process, |_, _| current_process == &process_id)
+                .enter(current_process, |_, _| current_process == process_id)
                 .unwrap_or(true)
         });
         if match_or_empty_or_nonexistant {

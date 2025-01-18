@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! UART driver.
 
 use core::cell::Cell;
@@ -106,7 +110,7 @@ impl<'a> Uart<'a> {
     pub fn new(base: StaticRef<UartRegisters>, clock_frequency: u32) -> Uart<'a> {
         Uart {
             registers: base,
-            clock_frequency: clock_frequency,
+            clock_frequency,
             stop_bits: Cell::new(hil::uart::StopBits::One),
 
             tx_client: OptionalCell::empty(),
@@ -323,7 +327,7 @@ impl hil::uart::Configure for Uart<'_> {
         if params.parity != hil::uart::Parity::None {
             return Err(ErrorCode::NOSUPPORT);
         }
-        if params.hw_flow_control != false {
+        if params.hw_flow_control {
             return Err(ErrorCode::NOSUPPORT);
         }
 

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Provide multiple Timers on top of a single underlying Alarm.
 
 use core::cell::Cell;
@@ -58,7 +62,7 @@ impl<'a, A: Alarm<'a>> VirtualTimer<'a, A> {
     /// Call this method immediately after new() to link this to the mux, otherwise timers won't
     /// fire
     pub fn setup(&'a self) {
-        self.mux.timers.push_head(&self);
+        self.mux.timers.push_head(self);
     }
 
     // Start a new timer, configuring its mode and adjusting the underlying alarm if needed.
@@ -193,7 +197,7 @@ impl<'a, A: Alarm<'a>> MuxTimer<'a, A> {
         MuxTimer {
             timers: List::new(),
             enabled: Cell::new(0),
-            alarm: alarm,
+            alarm,
         }
     }
 

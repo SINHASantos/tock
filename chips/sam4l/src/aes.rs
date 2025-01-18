@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Implementation of the AESA peripheral on the SAM4L.
 //!
 //! Authors:
@@ -214,7 +218,7 @@ impl<'a> Aes<'a> {
     }
 
     fn set_mode(&self, encrypting: bool, mode: ConfidentialityMode) {
-        let encrypt = if encrypting { 1 } else { 0 };
+        let encrypt = u32::from(encrypting);
         let dma = 0;
         self.registers.mode.write(
             Mode::ENCRYPT.val(encrypt)
@@ -236,7 +240,7 @@ impl<'a> Aes<'a> {
     }
 
     fn try_set_indices(&self, start_index: usize, stop_index: usize) -> bool {
-        stop_index.checked_sub(start_index).map_or(false, |sublen| {
+        stop_index.checked_sub(start_index).is_some_and(|sublen| {
             sublen % AES128_BLOCK_SIZE == 0 && {
                 self.source.map_or_else(
                     || {

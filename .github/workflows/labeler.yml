@@ -1,3 +1,7 @@
+# Licensed under the Apache License, Version 2.0 or the MIT License.
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+# Copyright Tock Contributors 2023.
+
 name: "Pull Request Labeler"
 on:
 - pull_request_target
@@ -12,6 +16,6 @@ jobs:
       pull-requests: write  # for actions/labeler to add labels to PRs
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/labeler@main
+    - uses: actions/labeler@v4.3.0
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"

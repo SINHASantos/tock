@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! This testing utility is designed to communicate with a device
 //! running Tock.  In particular, it interacts with the usbc_client
 //! capsule.  The USB controller and the client capsule must be enabled
@@ -12,10 +16,12 @@
 //! USB device, which then echos all data back to the PC via a
 //! Bulk IN endpoint, and this utility will then send it to stdout:
 //!
+//! ```
 //!   stdin  >___                  ___< Bulk IN endpoint  <--\
 //!              \                /                           | Tock usbc_client
 //!                [this utility]                             | capsule echoes data
 //!   stdout <___/                \___> Bulk OUT endpoint -->/
+//! ```
 //!
 //! Thus, a useful test of the USB software on Tock is to pipe a file of data
 //! through the path show above, and confirm that the output is the same as the input.

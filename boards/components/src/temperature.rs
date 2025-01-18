@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component for any Temperature sensor.
 //!
 //! Usage
@@ -16,10 +20,12 @@ use kernel::hil;
 
 #[macro_export]
 macro_rules! temperature_component_static {
-    () => {{
-        kernel::static_buf!(capsules_extra::temperature::TemperatureSensor<'static>)
+    ($T:ty $(,)?) => {{
+        kernel::static_buf!(capsules_extra::temperature::TemperatureSensor<'static, $T>)
     };};
 }
+
+pub type TemperatureComponentType<T> = capsules_extra::temperature::TemperatureSensor<'static, T>;
 
 pub struct TemperatureComponent<T: 'static + hil::sensors::TemperatureDriver<'static>> {
     board_kernel: &'static kernel::Kernel,
@@ -42,8 +48,8 @@ impl<T: 'static + hil::sensors::TemperatureDriver<'static>> TemperatureComponent
 }
 
 impl<T: 'static + hil::sensors::TemperatureDriver<'static>> Component for TemperatureComponent<T> {
-    type StaticInput = &'static mut MaybeUninit<TemperatureSensor<'static>>;
-    type Output = &'static TemperatureSensor<'static>;
+    type StaticInput = &'static mut MaybeUninit<TemperatureSensor<'static, T>>;
+    type Output = &'static TemperatureSensor<'static, T>;
 
     fn finalize(self, s: Self::StaticInput) -> Self::Output {
         let grant_cap = create_capability!(capabilities::MemoryAllocationCapability);

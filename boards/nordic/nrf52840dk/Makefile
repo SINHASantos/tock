@@ -1,7 +1,8 @@
-# Makefile for building the tock kernel for the nRF development kit
+# Licensed under the Apache License, Version 2.0 or the MIT License.
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+# Copyright Tock Contributors 2022.
 
-TARGET=thumbv7em-none-eabi
-PLATFORM=nrf52840dk
+# Makefile for building the tock kernel for the nRF development kit
 
 include ../../Makefile.common
 

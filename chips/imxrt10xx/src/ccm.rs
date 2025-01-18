@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use kernel::platform::chip::ClockInterface;
 use kernel::utilities::registers::interfaces::{ReadWriteable, Readable, Writeable};
 use kernel::utilities::registers::{register_bitfields, register_structs, ReadOnly, ReadWrite};
@@ -214,7 +218,7 @@ impl Ccm {
     }
 
     pub fn set_low_power_mode(&self) {
-        self.registers.clpcr.modify(CLPCR::LPM.val(0b00 as u32));
+        self.registers.clpcr.modify(CLPCR::LPM.val(0b00_u32));
     }
 
     // Iomuxc_snvs clock
@@ -223,8 +227,8 @@ impl Ccm {
     }
 
     pub fn enable_iomuxc_snvs_clock(&self) {
-        self.registers.ccgr[2].modify(CCGR::CG2.val(0b01 as u32));
-        self.registers.ccgr[3].modify(CCGR::CG15.val(0b01 as u32));
+        self.registers.ccgr[2].modify(CCGR::CG2.val(0b01_u32));
+        self.registers.ccgr[3].modify(CCGR::CG15.val(0b01_u32));
     }
 
     pub fn disable_iomuxc_snvs_clock(&self) {
@@ -238,8 +242,8 @@ impl Ccm {
     }
 
     pub fn enable_iomuxc_clock(&self) {
-        self.registers.ccgr[4].modify(CCGR::CG0.val(0b01 as u32));
-        self.registers.ccgr[4].modify(CCGR::CG1.val(0b01 as u32));
+        self.registers.ccgr[4].modify(CCGR::CG0.val(0b01_u32));
+        self.registers.ccgr[4].modify(CCGR::CG1.val(0b01_u32));
     }
 
     pub fn disable_iomuxc_clock(&self) {
@@ -253,7 +257,7 @@ impl Ccm {
     }
 
     pub fn enable_gpio1_clock(&self) {
-        self.registers.ccgr[1].modify(CCGR::CG13.val(0b11 as u32))
+        self.registers.ccgr[1].modify(CCGR::CG13.val(0b11_u32))
     }
 
     pub fn disable_gpio1_clock(&self) {
@@ -266,7 +270,7 @@ impl Ccm {
     }
 
     pub fn enable_gpio2_clock(&self) {
-        self.registers.ccgr[0].modify(CCGR::CG15.val(0b11 as u32))
+        self.registers.ccgr[0].modify(CCGR::CG15.val(0b11_u32))
     }
 
     pub fn disable_gpio2_clock(&self) {
@@ -279,7 +283,7 @@ impl Ccm {
     }
 
     pub fn enable_gpio3_clock(&self) {
-        self.registers.ccgr[2].modify(CCGR::CG13.val(0b11 as u32))
+        self.registers.ccgr[2].modify(CCGR::CG13.val(0b11_u32))
     }
 
     pub fn disable_gpio3_clock(&self) {
@@ -292,7 +296,7 @@ impl Ccm {
     }
 
     pub fn enable_gpio4_clock(&self) {
-        self.registers.ccgr[3].modify(CCGR::CG6.val(0b11 as u32))
+        self.registers.ccgr[3].modify(CCGR::CG6.val(0b11_u32))
     }
 
     pub fn disable_gpio4_clock(&self) {
@@ -305,7 +309,7 @@ impl Ccm {
     }
 
     pub fn enable_gpio5_clock(&self) {
-        self.registers.ccgr[1].modify(CCGR::CG15.val(0b11 as u32))
+        self.registers.ccgr[1].modify(CCGR::CG15.val(0b11_u32))
     }
 
     pub fn disable_gpio5_clock(&self) {
@@ -318,8 +322,8 @@ impl Ccm {
     }
 
     pub fn enable_gpt1_clock(&self) {
-        self.registers.ccgr[1].modify(CCGR::CG10.val(0b11 as u32));
-        self.registers.ccgr[1].modify(CCGR::CG11.val(0b11 as u32));
+        self.registers.ccgr[1].modify(CCGR::CG10.val(0b11_u32));
+        self.registers.ccgr[1].modify(CCGR::CG11.val(0b11_u32));
     }
 
     pub fn disable_gpt1_clock(&self) {
@@ -333,8 +337,8 @@ impl Ccm {
     }
 
     pub fn enable_gpt2_clock(&self) {
-        self.registers.ccgr[0].modify(CCGR::CG12.val(0b11 as u32));
-        self.registers.ccgr[0].modify(CCGR::CG13.val(0b11 as u32));
+        self.registers.ccgr[0].modify(CCGR::CG12.val(0b11_u32));
+        self.registers.ccgr[0].modify(CCGR::CG13.val(0b11_u32));
     }
 
     pub fn disable_gpt2_clock(&self) {
@@ -348,7 +352,7 @@ impl Ccm {
     }
 
     pub fn enable_lpi2c1_clock(&self) {
-        self.registers.ccgr[2].modify(CCGR::CG3.val(0b11 as u32));
+        self.registers.ccgr[2].modify(CCGR::CG3.val(0b11_u32));
     }
 
     pub fn disable_lpi2c1_clock(&self) {
@@ -361,7 +365,7 @@ impl Ccm {
     }
 
     pub fn enable_lpuart1_clock(&self) {
-        self.registers.ccgr[5].modify(CCGR::CG12.val(0b11 as u32));
+        self.registers.ccgr[5].modify(CCGR::CG12.val(0b11_u32));
     }
 
     pub fn disable_lpuart1_clock(&self) {
@@ -374,7 +378,7 @@ impl Ccm {
     }
 
     pub fn enable_lpuart2_clock(&self) {
-        self.registers.ccgr[0].modify(CCGR::CG14.val(0b11 as u32));
+        self.registers.ccgr[0].modify(CCGR::CG14.val(0b11_u32));
     }
 
     pub fn disable_lpuart2_clock(&self) {
@@ -412,14 +416,14 @@ impl Ccm {
         let divider = divider.max(1).min(1 << 6) - 1;
         self.registers
             .cscdr1
-            .modify(CSCDR1::UART_CLK_PODF.val(divider as u32));
+            .modify(CSCDR1::UART_CLK_PODF.val(divider));
     }
 
     /// Returns the UART clock divider
     ///
     /// The return is a value bound by [1, 2^6].
     pub fn uart_clock_podf(&self) -> u32 {
-        (self.registers.cscdr1.read(CSCDR1::UART_CLK_PODF) + 1) as u32
+        self.registers.cscdr1.read(CSCDR1::UART_CLK_PODF) + 1
     }
     //
     // PERCLK

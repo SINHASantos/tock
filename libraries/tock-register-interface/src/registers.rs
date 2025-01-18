@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Implementation of included register types.
 //!
 //! This module provides a standard set of register types, which can
@@ -29,7 +33,15 @@ use crate::{RegisterLongName, UIntLike};
 /// [`ReadWriteable`](crate::interfaces::ReadWriteable) traits are
 /// implemented.
 // To successfully alias this structure onto hardware registers in memory, this
-// struct must be exactly the size of the `T`.
+// struct must be exactly the size of the `T` and is thus marked
+// `repr(transparent)` over an `UnsafeCell<T>`, which itself is
+// `repr(transparent)` over `T`.
+//
+// This struct is constructed by casting a pointer to it (or, implicitly, by
+// casting a pointer to a larger struct that containts this type). As such, it
+// does not have a public constructor and Rust thinks it's dead code and should
+// be removed. We `allow(dead_code)` here to suppress this warning.
+#[allow(dead_code)]
 #[repr(transparent)]
 pub struct ReadWrite<T: UIntLike, R: RegisterLongName = ()> {
     value: UnsafeCell<T>,
@@ -59,7 +71,15 @@ impl<T: UIntLike, R: RegisterLongName> Writeable for ReadWrite<T, R> {
 /// For accessing the register contents the [`Readable`] trait is
 /// implemented.
 // To successfully alias this structure onto hardware registers in memory, this
-// struct must be exactly the size of the `T`.
+// struct must be exactly the size of the `T` and is thus marked
+// `repr(transparent)` over an `UnsafeCell<T>`, which itself is
+// `repr(transparent)` over `T`.
+//
+// This struct is constructed by casting a pointer to it (or, implicitly, by
+// casting a pointer to a larger struct that containts this type). As such, it
+// does not have a public constructor and Rust thinks it's dead code and should
+// be removed. We `allow(dead_code)` here to suppress this warning.
+#[allow(dead_code)]
 #[repr(transparent)]
 pub struct ReadOnly<T: UIntLike, R: RegisterLongName = ()> {
     value: T,
@@ -80,7 +100,15 @@ impl<T: UIntLike, R: RegisterLongName> Readable for ReadOnly<T, R> {
 /// For setting the register contents the [`Writeable`] trait is
 /// implemented.
 // To successfully alias this structure onto hardware registers in memory, this
-// struct must be exactly the size of the `T`.
+// struct must be exactly the size of the `T` and is thus marked
+// `repr(transparent)` over an `UnsafeCell<T>`, which itself is
+// `repr(transparent)` over `T`.
+//
+// This struct is constructed by casting a pointer to it (or, implicitly, by
+// casting a pointer to a larger struct that containts this type). As such, it
+// does not have a public constructor and Rust thinks it's dead code and should
+// be removed. We `allow(dead_code)` here to suppress this warning.
+#[allow(dead_code)]
 #[repr(transparent)]
 pub struct WriteOnly<T: UIntLike, R: RegisterLongName = ()> {
     value: UnsafeCell<T>,
@@ -110,7 +138,15 @@ impl<T: UIntLike, R: RegisterLongName> Writeable for WriteOnly<T, R> {
 /// type parameters `R` and `W` are identical, in which case a
 /// [`ReadWrite`] register might be a better choice).
 // To successfully alias this structure onto hardware registers in memory, this
-// struct must be exactly the size of the `T`.
+// struct must be exactly the size of the `T` and is thus marked
+// `repr(transparent)` over an `UnsafeCell<T>`, which itself is
+// `repr(transparent)` over `T`.
+//
+// This struct is constructed by casting a pointer to it (or, implicitly, by
+// casting a pointer to a larger struct that containts this type). As such, it
+// does not have a public constructor and Rust thinks it's dead code and should
+// be removed. We `allow(dead_code)` here to suppress this warning.
+#[allow(dead_code)]
 #[repr(transparent)]
 pub struct Aliased<T: UIntLike, R: RegisterLongName = (), W: RegisterLongName = ()> {
     value: UnsafeCell<T>,

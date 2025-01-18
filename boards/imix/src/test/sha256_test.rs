@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! This tests a software SHA256 implementation. To run this test,
 //! add this line to the imix boot sequence:
 //! ```
@@ -15,6 +19,8 @@
 //! hashes correctly. This string is 12 repetitions of "hello ", so is
 //! 72 bytes long. As SHA uses 64-byte/512 bit blocks, this verifies
 //! that multi-block hashes work correctly.
+
+use core::ptr::addr_of_mut;
 
 use capsules_extra::sha256::Sha256Software;
 use capsules_extra::test::sha256::TestSha256;
@@ -53,7 +59,12 @@ unsafe fn static_init_test_sha256() -> &'static TestSha256 {
     // We expect LSTRING to hash to LHASH, so final argument is true
     let test = static_init!(
         TestSha256,
-        TestSha256::new(sha, &mut LSTRING, &mut LHASH, true)
+        TestSha256::new(
+            sha,
+            &mut *addr_of_mut!(LSTRING),
+            &mut *addr_of_mut!(LHASH),
+            true
+        )
     );
 
     test

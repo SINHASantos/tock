@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use core::cell::Cell;
 
 use kernel::hil;
@@ -335,7 +339,7 @@ impl<'a> I2C<'a> {
             // send the next byte
             if self.buffer.is_some() && self.tx_position.get() < self.tx_len.get() {
                 self.buffer.map(|buf| {
-                    let byte = buf[self.tx_position.get() as usize];
+                    let byte = buf[self.tx_position.get()];
                     self.registers.txdr.write(TXDR::TXDATA.val(byte as u32));
                     self.tx_position.set(self.tx_position.get() + 1);
                 });
@@ -349,7 +353,7 @@ impl<'a> I2C<'a> {
             let byte = self.registers.rxdr.read(RXDR::RXDATA) as u8;
             if self.buffer.is_some() && self.rx_position.get() < self.rx_len.get() {
                 self.buffer.map(|buf| {
-                    buf[self.rx_position.get() as usize] = byte;
+                    buf[self.rx_position.get()] = byte;
                     self.rx_position.set(self.rx_position.get() + 1);
                 });
             }
@@ -471,8 +475,8 @@ impl<'a> I2C<'a> {
     }
 }
 
-impl i2c::I2CMaster for I2C<'_> {
-    fn set_master_client(&self, master_client: &'static dyn I2CHwMasterClient) {
+impl<'a> i2c::I2CMaster<'a> for I2C<'a> {
+    fn set_master_client(&self, master_client: &'a dyn I2CHwMasterClient) {
         self.master_client.replace(master_client);
     }
     fn enable(&self) {

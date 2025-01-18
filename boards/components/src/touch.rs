@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Components for the Touch Panel.
 //!
 //! Usage
@@ -48,7 +52,7 @@ pub struct TouchComponent {
     driver_num: usize,
     touch: &'static dyn kernel::hil::touch::Touch<'static>,
     gesture: Option<&'static dyn kernel::hil::touch::Gesture<'static>>,
-    screen: Option<&'static dyn kernel::hil::screen::Screen>,
+    screen: Option<&'static dyn kernel::hil::screen::Screen<'static>>,
 }
 
 impl TouchComponent {
@@ -57,14 +61,14 @@ impl TouchComponent {
         driver_num: usize,
         touch: &'static dyn kernel::hil::touch::Touch<'static>,
         gesture: Option<&'static dyn kernel::hil::touch::Gesture<'static>>,
-        screen: Option<&'static dyn kernel::hil::screen::Screen>,
+        screen: Option<&'static dyn kernel::hil::screen::Screen<'static>>,
     ) -> TouchComponent {
         TouchComponent {
-            board_kernel: board_kernel,
-            driver_num: driver_num,
-            touch: touch,
-            gesture: gesture,
-            screen: screen,
+            board_kernel,
+            driver_num,
+            touch,
+            gesture,
+            screen,
         }
     }
 }
@@ -98,7 +102,7 @@ pub struct MultiTouchComponent {
     driver_num: usize,
     multi_touch: &'static dyn kernel::hil::touch::MultiTouch<'static>,
     gesture: Option<&'static dyn kernel::hil::touch::Gesture<'static>>,
-    screen: Option<&'static dyn kernel::hil::screen::Screen>,
+    screen: Option<&'static dyn kernel::hil::screen::Screen<'static>>,
 }
 
 impl MultiTouchComponent {
@@ -110,11 +114,11 @@ impl MultiTouchComponent {
         screen: Option<&'static dyn kernel::hil::screen::Screen>,
     ) -> MultiTouchComponent {
         MultiTouchComponent {
-            board_kernel: board_kernel,
-            driver_num: driver_num,
-            multi_touch: multi_touch,
-            gesture: gesture,
-            screen: screen,
+            board_kernel,
+            driver_num,
+            multi_touch,
+            gesture,
+            screen,
         }
     }
 }

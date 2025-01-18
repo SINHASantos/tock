@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use core::cell::Cell;
 use kernel::utilities::registers::interfaces::{ReadWriteable, Readable, Writeable};
 use kernel::utilities::registers::{register_bitfields, register_structs, ReadOnly, ReadWrite};
@@ -1038,7 +1042,7 @@ impl Clocks {
         (((source_freq as u64) << 8) / freq as u64) as u32
     }
 
-    #[cfg(all(target_arch = "arm", target_os = "none"))]
+    #[cfg(any(doc, all(target_arch = "arm", target_os = "none")))]
     #[inline]
     fn loop_3_cycles(&self, clock: Clock) {
         if self.get_frequency(clock) > 0 {
@@ -1055,7 +1059,7 @@ impl Clocks {
         }
     }
 
-    #[cfg(not(any(target_arch = "arm", target_os = "none")))]
+    #[cfg(not(any(doc, all(target_arch = "arm", target_os = "none"))))]
     fn loop_3_cycles(&self, _clock: Clock) {
         unimplemented!()
     }

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use core::cell::Cell;
 
 use kernel::utilities::cells::OptionalCell;
@@ -169,7 +173,7 @@ impl<'a> VirtIONet<'a> {
     }
 }
 
-impl<'a> SplitVirtqueueClient<'static> for VirtIONet<'a> {
+impl SplitVirtqueueClient<'static> for VirtIONet<'_> {
     fn buffer_chain_ready(
         &self,
         queue_number: u32,
@@ -202,7 +206,7 @@ impl<'a> SplitVirtqueueClient<'static> for VirtIONet<'a> {
     }
 }
 
-impl<'a> VirtIODeviceDriver for VirtIONet<'a> {
+impl VirtIODeviceDriver for VirtIONet<'_> {
     fn negotiate_features(&self, offered_features: u64) -> Option<u64> {
         let offered_features =
             LocalRegisterCopy::<u64, VirtIONetFeatures::Register>::new(offered_features);

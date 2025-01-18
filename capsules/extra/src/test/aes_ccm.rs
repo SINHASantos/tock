@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Test the AES CCM implementation on top of AES hardware.
 
 use core::cell::Cell;
@@ -27,7 +31,7 @@ pub struct Test<'a, A: AES128CCM<'a>> {
 impl<'a, A: AES128CCM<'a>> Test<'a, A> {
     pub fn new(aes_ccm: &'a A, buf: &'static mut [u8]) -> Test<'a, A> {
         Test {
-            aes_ccm: aes_ccm,
+            aes_ccm,
             buf: TakeCell::new(buf),
             current_test: Cell::new(0),
             encrypting: Cell::new(true),
@@ -97,7 +101,7 @@ impl<'a, A: AES128CCM<'a>> Test<'a, A> {
             buf[m_off..m_off + m_len + mic_len].copy_from_slice(c_data);
         }
 
-        if self.aes_ccm.set_key(&KEY) != Ok(()) || self.aes_ccm.set_nonce(&nonce) != Ok(()) {
+        if self.aes_ccm.set_key(&KEY) != Ok(()) || self.aes_ccm.set_nonce(nonce) != Ok(()) {
             panic!("aes_ccm_test failed: cannot set key or nonce.");
         }
 

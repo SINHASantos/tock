@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component for communicating with the nRF51822 (BLE).
 //!
 //! This provides one Component, Nrf51822Component, which implements
@@ -56,10 +60,10 @@ impl<U: 'static + hil::uart::UartAdvanced<'static>, G: 'static + hil::gpio::Pin>
         reset_pin: &'static G,
     ) -> Nrf51822Component<U, G> {
         Nrf51822Component {
-            board_kernel: board_kernel,
-            driver_num: driver_num,
-            uart: uart,
-            reset_pin: reset_pin,
+            board_kernel,
+            driver_num,
+            uart,
+            reset_pin,
         }
     }
 }

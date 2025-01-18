@@ -1,3 +1,7 @@
+# Licensed under the Apache License, Version 2.0 or the MIT License.
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+# Copyright Tock Contributors 2022.
+
 [package]
 name = "kernel"
 version.workspace = true
@@ -30,3 +34,6 @@ trace_syscalls = []
 debug_load_processes = []
 no_debug_panics = []
 debug_process_credentials = []
+
+[lints]
+workspace = true

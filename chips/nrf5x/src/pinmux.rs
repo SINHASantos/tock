@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! An abstraction over the pin multiplexer, nRF5X-family
 //!
 //! Controller drivers should use the `Pinmux` type (instead of a `u32`) for
@@ -41,8 +45,8 @@ impl Pinmux {
     }
 }
 
-impl Into<u32> for Pinmux {
-    fn into(self) -> u32 {
-        self.0
+impl From<Pinmux> for u32 {
+    fn from(val: Pinmux) -> Self {
+        val.0
     }
 }

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Radio driver, Bluetooth Low Energy, NRF52
 //!
 //! The generic radio configuration i.e., not specific to Bluetooth are functions and similar which
@@ -34,7 +38,8 @@
 //! * CRC - 3 bytes
 
 use core::cell::Cell;
-use core::convert::TryFrom;
+use core::ptr::addr_of;
+use core::ptr::addr_of_mut;
 use kernel::hil::ble_advertising;
 use kernel::hil::ble_advertising::RadioChannel;
 use kernel::utilities::cells::OptionalCell;
@@ -539,7 +544,7 @@ pub struct Radio<'a> {
 }
 
 impl<'a> Radio<'a> {
-    pub fn new() -> Radio<'a> {
+    pub const fn new() -> Radio<'a> {
         Radio {
             registers: RADIO_BASE,
             tx_power: Cell::new(TxPower::ZerodBm),
@@ -590,9 +595,7 @@ impl<'a> Radio<'a> {
     }
 
     fn set_dma_ptr(&self) {
-        unsafe {
-            self.registers.packetptr.set(PAYLOAD.as_ptr() as u32);
-        }
+        self.registers.packetptr.set(addr_of!(PAYLOAD) as u32);
     }
 
     #[inline(never)]
@@ -641,7 +644,11 @@ impl<'a> Radio<'a> {
                             // Length is: S0 (1 Byte) + Length (1 Byte) + S1 (0 Bytes) + Payload
                             // And because the length field is directly read from the packet
                             // We need to add 2 to length to get the total length
-                            client.receive_event(&mut PAYLOAD, PAYLOAD[1] + 2, result)
+                            client.receive_event(
+                                &mut *addr_of_mut!(PAYLOAD),
+                                PAYLOAD[1] + 2,
+                                result,
+                            )
                         });
                     }
                 }
@@ -818,7 +825,7 @@ impl ble_advertising::BleConfig for Radio<'_> {
         // Convert u8 to TxPower
         match nrf5x::constants::TxPower::try_from(tx_power) {
             // Invalid transmitting power, propogate error
-            Err(_) => Err(ErrorCode::NOSUPPORT),
+            Err(()) => Err(ErrorCode::NOSUPPORT),
             // Valid transmitting power, propogate success
             Ok(res) => {
                 self.tx_power.set(res);

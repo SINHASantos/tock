@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Tock Register Interface
 //!
 //! Provides efficient mechanisms to express and use type-checked
@@ -65,9 +69,12 @@ pub mod macros;
 #[cfg(feature = "register_types")]
 pub mod registers;
 
+pub mod debug;
+
 mod local_register;
 pub use local_register::LocalRegisterCopy;
 
+use core::fmt::Debug;
 use core::ops::{BitAnd, BitOr, BitOrAssign, Not, Shl, Shr};
 
 /// Trait representing the base type of registers.
@@ -89,6 +96,7 @@ pub trait UIntLike:
     + Shl<usize, Output = Self>
     + Copy
     + Clone
+    + Debug
 {
     /// Return the representation of the value `0` in the implementing
     /// type.

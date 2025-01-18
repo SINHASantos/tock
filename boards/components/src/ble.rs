@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component for creating a ble_advertising_driver.
 //!
 //! Usage
@@ -6,7 +10,6 @@
 //! let ble_radio = BLEComponent::new(board_kernel, &nrf52::ble_radio::RADIO, mux_alarm).finalize();
 //! ```
 
-use capsules_core;
 use capsules_core::virtualizers::virtual_alarm::VirtualMuxAlarm;
 use core::mem::MaybeUninit;
 use kernel::capabilities;

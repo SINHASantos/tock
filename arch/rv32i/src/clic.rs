@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Core Local Interrupt Control peripheral driver.
 
 use kernel::utilities::registers::interfaces::{Readable, Writeable};
@@ -282,7 +286,7 @@ impl Clic {
 /// This is outside of the `Clic` struct because it has to be called from the
 /// trap handler which does not have a reference to the CLIC object.
 pub unsafe fn disable_interrupt(index: u32) {
-    let regs: &ClicRegisters = &*CLIC_BASE;
+    let regs: &ClicRegisters = &CLIC_BASE;
 
     match index {
         3 => regs.clicintie.msip.write(inten::IntEn::CLEAR),

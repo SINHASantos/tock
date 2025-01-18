@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Mechanism for inspecting the status of the kernel.
 //!
 //! In particular this provides functions for getting the status of processes
@@ -25,7 +29,7 @@ pub struct KernelInfo {
 
 impl KernelInfo {
     pub fn new(kernel: &'static Kernel) -> KernelInfo {
-        KernelInfo { kernel: kernel }
+        KernelInfo { kernel }
     }
 
     /// Returns how many processes have been loaded on this platform. This is

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 // This file was vendored into Tock. It comes from
 // https://github.com/japaric/vcell, commit
 // ef556474203e93b3f45f0f8cd8dea3210aa7f844, path src/lib.rs.
@@ -14,9 +18,12 @@
 use core::cell::UnsafeCell;
 use core::ptr;
 
-/// `VolatileCell` provides a wrapper around unsafe volatile pointer reads and
-/// writes. This is particularly useful for accessing microcontroller registers
-/// by (unsafely) casting a pointer to the register into a `VolatileCell`.
+/// `VolatileCell` provides a wrapper around unsafe volatile pointer
+/// reads and writes.
+///
+/// This is particularly useful for accessing microcontroller
+/// registers by (unsafely) casting a pointer to the register into a
+/// `VolatileCell`.
 ///
 /// ```
 /// use tock_cells::volatile_cell::VolatileCell;

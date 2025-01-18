@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! GPIO instantiation.
 
 use core::ops::{Index, IndexMut};
@@ -26,7 +30,7 @@ impl<'a> IndexMut<usize> for Port<'a> {
     }
 }
 
-impl<'a> Port<'a> {
+impl Port<'_> {
     pub const fn new() -> Self {
         Self {
             pins: [

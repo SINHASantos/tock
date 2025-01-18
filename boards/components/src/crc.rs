@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component for Crc syscall interface.
 //!
 //! This provides one Component, `CrcComponent`, which implements a
@@ -45,9 +49,9 @@ impl<C: 'static + Crc<'static>> CrcComponent<C> {
         crc: &'static C,
     ) -> CrcComponent<C> {
         CrcComponent {
-            board_kernel: board_kernel,
-            driver_num: driver_num,
-            crc: crc,
+            board_kernel,
+            driver_num,
+            crc,
         }
     }
 }

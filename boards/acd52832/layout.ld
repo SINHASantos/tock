@@ -1,3 +1,7 @@
+/* Licensed under the Apache License, Version 2.0 or the MIT License. */
+/* SPDX-License-Identifier: Apache-2.0 OR MIT                         */
+/* Copyright Tock Contributors 2023.                                  */
+
 /* Memory Space Definitions, 512K flash, 64K ram */
 MEMORY
 {
@@ -8,4 +12,4 @@ MEMORY
 
 PAGE_SIZE = 4K;
 
-INCLUDE ../kernel_layout.ld
+INCLUDE tock_kernel_layout.ld

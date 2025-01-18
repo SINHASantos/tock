@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Components for the FXOS8700cq
 //!
 //! I2C Interface
@@ -24,11 +28,13 @@ use kernel::component::Component;
 use core::mem::MaybeUninit;
 use kernel::hil;
 use kernel::hil::gpio;
+use kernel::hil::i2c;
 
 #[macro_export]
 macro_rules! fxos8700_component_static {
-    () => {{
-        let i2c_device = kernel::static_buf!(capsules_core::virtualizers::virtual_i2c::I2CDevice);
+    ($I:ty $(,)?) => {{
+        let i2c_device =
+            kernel::static_buf!(capsules_core::virtualizers::virtual_i2c::I2CDevice<$I>);
         let buffer = kernel::static_buf!([u8; capsules_extra::fxos8700cq::BUF_LEN]);
         let fxo = kernel::static_buf!(capsules_extra::fxos8700cq::Fxos8700cq<'static>);
 
@@ -36,29 +42,29 @@ macro_rules! fxos8700_component_static {
     };};
 }
 
-pub struct Fxos8700Component {
-    i2c_mux: &'static MuxI2C<'static>,
+pub struct Fxos8700Component<I: 'static + i2c::I2CMaster<'static>> {
+    i2c_mux: &'static MuxI2C<'static, I>,
     i2c_address: u8,
     gpio: &'static dyn gpio::InterruptPin<'static>,
 }
 
-impl Fxos8700Component {
-    pub fn new<'a>(
-        i2c: &'static MuxI2C<'static>,
+impl<I: 'static + i2c::I2CMaster<'static>> Fxos8700Component<I> {
+    pub fn new(
+        i2c: &'static MuxI2C<'static, I>,
         i2c_address: u8,
         gpio: &'static dyn hil::gpio::InterruptPin<'static>,
-    ) -> Fxos8700Component {
+    ) -> Fxos8700Component<I> {
         Fxos8700Component {
             i2c_mux: i2c,
             i2c_address,
-            gpio: gpio,
+            gpio,
         }
     }
 }
 
-impl Component for Fxos8700Component {
+impl<I: 'static + i2c::I2CMaster<'static>> Component for Fxos8700Component<I> {
     type StaticInput = (
-        &'static mut MaybeUninit<I2CDevice<'static>>,
+        &'static mut MaybeUninit<I2CDevice<'static, I>>,
         &'static mut MaybeUninit<[u8; capsules_extra::fxos8700cq::BUF_LEN]>,
         &'static mut MaybeUninit<Fxos8700cq<'static>>,
     );

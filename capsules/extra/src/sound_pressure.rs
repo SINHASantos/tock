@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Provides userspace with access to sound_pressure sensors.
 //!
 //! Userspace Interface
@@ -38,7 +42,7 @@
 //!
 //! You need a device that provides the `hil::sensors::SoundPressure` trait.
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use kernel::static_init;
 //!
 //! let grant_cap = create_capability!(capabilities::MemoryAllocationCapability);
@@ -53,7 +57,6 @@
 //! ```
 
 use core::cell::Cell;
-use core::convert::TryFrom;
 use kernel::grant::{AllowRoCount, AllowRwCount, Grant, UpcallCount};
 use kernel::hil;
 use kernel::syscall::{CommandReturn, SyscallDriver};
@@ -81,7 +84,7 @@ impl<'a> SoundPressureSensor<'a> {
         grant: Grant<App, UpcallCount<1>, AllowRoCount<0>, AllowRwCount<0>>,
     ) -> SoundPressureSensor<'a> {
         SoundPressureSensor {
-            driver: driver,
+            driver,
             apps: grant,
             busy: Cell::new(false),
         }

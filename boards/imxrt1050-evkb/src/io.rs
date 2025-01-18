@@ -1,5 +1,11 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use core::fmt::Write;
 use core::panic::PanicInfo;
+use core::ptr::addr_of;
+use core::ptr::addr_of_mut;
 
 use kernel::debug;
 use kernel::debug::IoWrite;
@@ -37,7 +43,7 @@ impl Write for Writer {
 }
 
 impl IoWrite for Writer {
-    fn write(&mut self, buf: &[u8]) {
+    fn write(&mut self, buf: &[u8]) -> usize {
         let ccm = crate::imxrt1050::ccm::Ccm::new();
         let uart = imxrt1050::lpuart::Lpuart::new_lpuart1(&ccm);
 
@@ -56,25 +62,26 @@ impl IoWrite for Writer {
         for &c in buf {
             uart.send_byte(c);
         }
+        buf.len()
     }
 }
 
 /// Panic handler.
 #[no_mangle]
 #[panic_handler]
-pub unsafe extern "C" fn panic_fmt(info: &PanicInfo) -> ! {
+pub unsafe fn panic_fmt(info: &PanicInfo) -> ! {
     // User Led is connected to AdB0_09
     let pin = imxrt1050::gpio::Pin::from_pin_id(PinId::AdB0_09);
     let led = &mut led::LedLow::new(&pin);
-    let writer = &mut WRITER;
+    let writer = &mut *addr_of_mut!(WRITER);
 
     debug::panic(
         &mut [led],
         writer,
         info,
         &cortexm7::support::nop,
-        &PROCESSES,
-        &CHIP,
-        &PROCESS_PRINTER,
+        &*addr_of!(PROCESSES),
+        &*addr_of!(CHIP),
+        &*addr_of!(PROCESS_PRINTER),
     )
 }

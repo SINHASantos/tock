@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use enum_primitive::cast::FromPrimitive;
 use enum_primitive::enum_from_primitive;
 use kernel::platform::chip::ClockInterface;
@@ -121,8 +125,8 @@ pub struct Syscfg<'a> {
 }
 
 impl<'a> Syscfg<'a> {
-    pub const fn new(rcc: &'a rcc::Rcc) -> Syscfg {
-        Syscfg {
+    pub const fn new(rcc: &'a rcc::Rcc) -> Self {
+        Self {
             registers: SYSCFG_BASE,
             clock: SyscfgClock(rcc::PeripheralClock::new(
                 rcc::PeripheralClockType::APB2(rcc::PCLK2::SYSCFG),

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Timer driver, nRF5X-family
 //!
 //! The nRF51822 timer system operates off of the high frequency clock
@@ -238,7 +242,7 @@ impl Timer {
             // clear it and store its bit in val to pass in callback.
             for i in 0..4 {
                 if self.registers.events_compare[i].is_set(Event::READY) {
-                    val = val | 1 << i;
+                    val |= 1 << i;
                     self.registers.events_compare[i].write(Event::READY::CLEAR);
                     // Disable corresponding interrupt
                     let interrupt_bit = match i {

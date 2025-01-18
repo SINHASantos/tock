@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use kernel::platform::chip::ClockInterface;
 use kernel::utilities::registers::interfaces::{ReadWriteable, Readable};
 use kernel::utilities::registers::{register_bitfields, ReadWrite};
@@ -703,7 +707,7 @@ impl<'a> PeripheralClock<'a> {
     }
 }
 
-impl<'a> ClockInterface for PeripheralClock<'a> {
+impl ClockInterface for PeripheralClock<'_> {
     fn is_enabled(&self) -> bool {
         match self.clock {
             PeripheralClockType::AHB(ref v) => match v {

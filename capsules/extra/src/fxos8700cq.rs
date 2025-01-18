@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! SyscallDriver for the FXOS8700CQ accelerometer.
 //!
 //! <https://www.nxp.com/docs/en/data-sheet/FXOS8700CQ.pdf>
@@ -8,7 +12,7 @@
 //! Usage
 //! -----
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use kernel::static_init;
 //!
 //! let fxos8700_i2c = static_init!(I2CDevice, I2CDevice::new(i2c_bus, 0x1e));
@@ -192,8 +196,8 @@ impl<'a> Fxos8700cq<'a> {
         buffer: &'static mut [u8],
     ) -> Fxos8700cq<'a> {
         Fxos8700cq {
-            i2c: i2c,
-            interrupt_pin1: interrupt_pin1,
+            i2c,
+            interrupt_pin1,
             state: Cell::new(State::Disabled),
             buffer: TakeCell::new(buffer),
             callback: OptionalCell::empty(),
@@ -309,7 +313,7 @@ impl I2CClient for Fxos8700cq<'_> {
                 }
             }
             State::ReadAccelWait => {
-                if self.interrupt_pin1.read() == false {
+                if !self.interrupt_pin1.read() {
                     // Sample is already ready.
                     self.interrupt_pin1.disable_interrupts();
                     buffer[0] = Registers::OutXMsb as u8;

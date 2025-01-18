@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Test reception on the virtualized UART: best if multiple Tests are
 //! instantiated and tested in parallel.
 use crate::virtualizers::virtual_uart::UartDevice;
@@ -16,7 +20,7 @@ pub struct TestVirtualUartReceive {
 impl TestVirtualUartReceive {
     pub fn new(device: &'static UartDevice<'static>, buffer: &'static mut [u8]) -> Self {
         TestVirtualUartReceive {
-            device: device,
+            device,
             buffer: TakeCell::new(buffer),
         }
     }

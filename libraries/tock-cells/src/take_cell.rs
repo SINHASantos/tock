@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Tock specific `TakeCell` type for sharing references.
 
 use core::cell::Cell;
@@ -16,10 +20,12 @@ pub struct TakeCell<'a, T: 'a + ?Sized> {
 }
 
 impl<'a, T: ?Sized> TakeCell<'a, T> {
-    pub fn empty() -> TakeCell<'a, T> {
-        TakeCell {
-            val: Cell::new(None),
-        }
+    const EMPTY: Self = Self {
+        val: Cell::new(None),
+    };
+
+    pub const fn empty() -> TakeCell<'a, T> {
+        Self::EMPTY
     }
 
     /// Creates a new `TakeCell` containing `value`
@@ -111,8 +117,8 @@ impl<'a, T: ?Sized> TakeCell<'a, T> {
         F: FnOnce(&mut T) -> R,
     {
         let maybe_val = self.take();
-        maybe_val.map(|mut val| {
-            let res = closure(&mut val);
+        maybe_val.map(|val| {
+            let res = closure(val);
             self.replace(val);
             res
         })
@@ -124,8 +130,8 @@ impl<'a, T: ?Sized> TakeCell<'a, T> {
         F: FnOnce(&mut T) -> R,
     {
         let maybe_val = self.take();
-        maybe_val.map_or(default, |mut val| {
-            let res = closure(&mut val);
+        maybe_val.map_or(default, |val| {
+            let res = closure(val);
             self.replace(val);
             res
         })
@@ -141,8 +147,8 @@ impl<'a, T: ?Sized> TakeCell<'a, T> {
         let maybe_val = self.take();
         maybe_val.map_or_else(
             || default(),
-            |mut val| {
-                let res = f(&mut val);
+            |val| {
+                let res = f(val);
                 self.replace(val);
                 res
             },
@@ -156,8 +162,8 @@ impl<'a, T: ?Sized> TakeCell<'a, T> {
         F: FnOnce(&mut T) -> Option<R>,
     {
         let maybe_val = self.take();
-        maybe_val.and_then(|mut val| {
-            let res = closure(&mut val);
+        maybe_val.and_then(|val| {
+            let res = closure(val);
             self.replace(val);
             res
         })
@@ -172,8 +178,8 @@ impl<'a, T: ?Sized> TakeCell<'a, T> {
         G: FnOnce() -> &'a mut T,
     {
         let val = match self.take() {
-            Some(mut val) => {
-                modify(&mut val);
+            Some(val) => {
+                modify(val);
                 val
             }
             None => mkval(),

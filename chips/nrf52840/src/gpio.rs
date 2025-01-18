@@ -1,8 +1,12 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 pub use nrf52::gpio::{GPIOPin, Pin, Port};
 
 pub const NUM_PINS: usize = 48;
 
-pub fn nrf52840_gpio_create<'a>() -> Port<'a, NUM_PINS> {
+pub const fn nrf52840_gpio_create<'a>() -> Port<'a, NUM_PINS> {
     Port::new([
         GPIOPin::new(Pin::P0_00),
         GPIOPin::new(Pin::P0_01),

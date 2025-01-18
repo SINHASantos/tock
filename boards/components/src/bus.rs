@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Bus Components for Intel8080 Parallel Interface, I2C, SPI
 //!
 //! Example
@@ -27,6 +31,7 @@ use capsules_extra::bus::{Bus8080Bus, I2CMasterBus, SpiMasterBus};
 use core::mem::MaybeUninit;
 use kernel::component::Component;
 use kernel::hil::bus8080;
+use kernel::hil::i2c;
 use kernel::hil::spi::{self, ClockPhase, ClockPolarity, SpiMasterDevice};
 
 // Setup static space for the objects.
@@ -57,11 +62,15 @@ macro_rules! spi_bus_component_static {
 
 #[macro_export]
 macro_rules! i2c_master_bus_component_static {
-    () => {{
+    ($D:ty $(,)?) => {{
         let address_buffer = kernel::static_buf!([u8; 1]);
-        let bus = kernel::static_buf!(capsules_extra::bus::I2CMasterBus<'static>);
-        let i2c_device =
-            kernel::static_buf!(capsules_core::virtualizers::virtual_i2c::I2CDevice<'static>);
+        let bus = kernel::static_buf!(capsules_extra::bus::I2CMasterBus<'static, $D>);
+        let i2c_device = kernel::static_buf!(
+            capsules_core::virtualizers::virtual_i2c::I2CDevice<
+                'static,
+                capsules_extra::bus::I2CMasterBus<'static, $D>,
+            >
+        );
 
         (bus, i2c_device, address_buffer)
     };};
@@ -89,7 +98,7 @@ impl<B: 'static + bus8080::Bus8080<'static>> Component for Bus8080BusComponent<B
     }
 }
 
-pub struct SpiMasterBusComponent<S: 'static + spi::SpiMaster> {
+pub struct SpiMasterBusComponent<S: 'static + spi::SpiMaster<'static>> {
     spi_mux: &'static MuxSpiMaster<'static, S>,
     chip_select: S::ChipSelect,
     baud_rate: u32,
@@ -97,7 +106,7 @@ pub struct SpiMasterBusComponent<S: 'static + spi::SpiMaster> {
     clock_polarity: ClockPolarity,
 }
 
-impl<S: 'static + spi::SpiMaster> SpiMasterBusComponent<S> {
+impl<S: 'static + spi::SpiMaster<'static>> SpiMasterBusComponent<S> {
     pub fn new(
         spi_mux: &'static MuxSpiMaster<'static, S>,
         chip_select: S::ChipSelect,
@@ -115,7 +124,7 @@ impl<S: 'static + spi::SpiMaster> SpiMasterBusComponent<S> {
     }
 }
 
-impl<S: 'static + spi::SpiMaster> Component for SpiMasterBusComponent<S> {
+impl<S: 'static + spi::SpiMaster<'static>> Component for SpiMasterBusComponent<S> {
     type StaticInput = (
         &'static mut MaybeUninit<VirtualSpiMasterDevice<'static, S>>,
         &'static mut MaybeUninit<SpiMasterBus<'static, VirtualSpiMasterDevice<'static, S>>>,
@@ -144,27 +153,24 @@ impl<S: 'static + spi::SpiMaster> Component for SpiMasterBusComponent<S> {
     }
 }
 
-pub struct I2CMasterBusComponent {
-    i2c_mux: &'static MuxI2C<'static>,
+pub struct I2CMasterBusComponent<I: 'static + i2c::I2CMaster<'static>> {
+    i2c_mux: &'static MuxI2C<'static, I>,
     address: u8,
 }
 
-impl I2CMasterBusComponent {
-    pub fn new(i2c_mux: &'static MuxI2C<'static>, address: u8) -> I2CMasterBusComponent {
-        I2CMasterBusComponent {
-            i2c_mux: i2c_mux,
-            address: address,
-        }
+impl<I: 'static + i2c::I2CMaster<'static>> I2CMasterBusComponent<I> {
+    pub fn new(i2c_mux: &'static MuxI2C<'static, I>, address: u8) -> I2CMasterBusComponent<I> {
+        I2CMasterBusComponent { i2c_mux, address }
     }
 }
 
-impl Component for I2CMasterBusComponent {
+impl<I: 'static + i2c::I2CMaster<'static>> Component for I2CMasterBusComponent<I> {
     type StaticInput = (
-        &'static mut MaybeUninit<I2CMasterBus<'static, I2CDevice<'static>>>,
-        &'static mut MaybeUninit<I2CDevice<'static>>,
+        &'static mut MaybeUninit<I2CMasterBus<'static, I2CDevice<'static, I>>>,
+        &'static mut MaybeUninit<I2CDevice<'static, I>>,
         &'static mut MaybeUninit<[u8; 1]>,
     );
-    type Output = &'static I2CMasterBus<'static, I2CDevice<'static>>;
+    type Output = &'static I2CMasterBus<'static, I2CDevice<'static, I>>;
 
     fn finalize(self, static_buffer: Self::StaticInput) -> Self::Output {
         let i2c_device = static_buffer

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Test that an Alarm implementation is working by trying a few edge
 //! cases on the delay, including delays of 1 and 0 delays. Depends
 //! on a working UART and debug! macro.
@@ -17,7 +21,7 @@ pub struct TestAlarmEdgeCases<'a, A: 'a> {
 impl<'a, A: Alarm<'a>> TestAlarmEdgeCases<'a, A> {
     pub fn new(alarm: &'a A) -> TestAlarmEdgeCases<'a, A> {
         TestAlarmEdgeCases {
-            alarm: alarm,
+            alarm,
             counter: Cell::new(0),
             alarms: [
                 100, 200, 25, 25, 25, 25, 500, 0, 448, 15, 19, 1, 0, 33, 5, 1000, 27, 1, 0, 1,

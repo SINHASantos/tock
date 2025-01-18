@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Map arbitrary nonvolatile reads and writes to page operations.
 //!
 //! This splits non-page-aligned reads and writes into a series of page level
@@ -20,16 +24,19 @@
 //! Usage
 //! -----
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use kernel::{hil, static_init};
-//!
+
 //! sam4l::flashcalw::FLASH_CONTROLLER.configure();
-//! pub static mut PAGEBUFFER: sam4l::flashcalw::Sam4lPage = sam4l::flashcalw::Sam4lPage::new();
+//! let page_buffer = static_init!(
+//!     sam4l::flashcalw::Sam4lPage,
+//!     sam4l::flashcalw::Sam4lPage::default()
+//! );
 //! let nv_to_page = static_init!(
 //!     capsules::nonvolatile_to_pages::NonvolatileToPages<'static, sam4l::flashcalw::FLASHCALW>,
 //!     capsules::nonvolatile_to_pages::NonvolatileToPages::new(
 //!         &mut sam4l::flashcalw::FLASH_CONTROLLER,
-//!         &mut PAGEBUFFER));
+//!         page_buffer));
 //! hil::flash::HasClient::set_client(&sam4l::flashcalw::FLASH_CONTROLLER, nv_to_page);
 //! ```
 
@@ -52,7 +59,7 @@ pub struct NonvolatileToPages<'a, F: hil::flash::Flash + 'static> {
     /// The module providing a `Flash` interface.
     driver: &'a F,
     /// Callback to the user of this capsule.
-    client: OptionalCell<&'static dyn hil::nonvolatile_storage::NonvolatileStorageClient<'static>>,
+    client: OptionalCell<&'a dyn hil::nonvolatile_storage::NonvolatileStorageClient>,
     /// Buffer correctly sized for the underlying flash page size.
     pagebuffer: TakeCell<'static, F::Page>,
     /// Current state of this capsule.
@@ -74,7 +81,7 @@ pub struct NonvolatileToPages<'a, F: hil::flash::Flash + 'static> {
 impl<'a, F: hil::flash::Flash> NonvolatileToPages<'a, F> {
     pub fn new(driver: &'a F, buffer: &'static mut F::Page) -> NonvolatileToPages<'a, F> {
         NonvolatileToPages {
-            driver: driver,
+            driver,
             client: OptionalCell::empty(),
             pagebuffer: TakeCell::new(buffer),
             state: Cell::new(State::Idle),
@@ -87,10 +94,10 @@ impl<'a, F: hil::flash::Flash> NonvolatileToPages<'a, F> {
     }
 }
 
-impl<'a, F: hil::flash::Flash> hil::nonvolatile_storage::NonvolatileStorage<'static>
+impl<'a, F: hil::flash::Flash> hil::nonvolatile_storage::NonvolatileStorage<'a>
     for NonvolatileToPages<'a, F>
 {
-    fn set_client(&self, client: &'static dyn hil::nonvolatile_storage::NonvolatileStorageClient) {
+    fn set_client(&self, client: &'a dyn hil::nonvolatile_storage::NonvolatileStorageClient) {
         self.client.set(client);
     }
 
@@ -151,9 +158,7 @@ impl<'a, F: hil::flash::Flash> hil::nonvolatile_storage::NonvolatileStorage<'sta
                     // page or more.
 
                     // Copy data into page buffer.
-                    for i in 0..page_size {
-                        pagebuffer.as_mut()[i] = buffer[i];
-                    }
+                    pagebuffer.as_mut()[..page_size].copy_from_slice(&buffer[..page_size]);
 
                     self.buffer.replace(buffer);
                     self.address.set(address + page_size);
@@ -187,7 +192,11 @@ impl<'a, F: hil::flash::Flash> hil::nonvolatile_storage::NonvolatileStorage<'sta
 }
 
 impl<F: hil::flash::Flash> hil::flash::Client<F> for NonvolatileToPages<'_, F> {
-    fn read_complete(&self, pagebuffer: &'static mut F::Page, _error: hil::flash::Error) {
+    fn read_complete(
+        &self,
+        pagebuffer: &'static mut F::Page,
+        _result: Result<(), hil::flash::Error>,
+    ) {
         match self.state.get() {
             State::Read => {
                 // OK we got a page from flash. Copy what we actually want from it
@@ -202,9 +211,8 @@ impl<F: hil::flash::Flash> hil::flash::Client<F> for NonvolatileToPages<'_, F> {
                     let buffer_index = self.buffer_index.get();
 
                     // Copy what we read from the page buffer to the user buffer.
-                    for i in 0..len {
-                        buffer[buffer_index + i] = pagebuffer.as_mut()[page_index + i];
-                    }
+                    buffer[buffer_index..(len + buffer_index)]
+                        .copy_from_slice(&pagebuffer.as_mut()[page_index..(len + page_index)]);
 
                     // Decide if we are done.
                     let new_len = self.remaining_length.get() - len;
@@ -246,9 +254,8 @@ impl<F: hil::flash::Flash> hil::flash::Client<F> for NonvolatileToPages<'_, F> {
                     let page_number = self.address.get() / page_size;
 
                     // Copy what we read from the page buffer to the user buffer.
-                    for i in 0..len {
-                        pagebuffer.as_mut()[page_index + i] = buffer[buffer_index + i];
-                    }
+                    pagebuffer.as_mut()[page_index..(len + page_index)]
+                        .copy_from_slice(&buffer[buffer_index..(len + buffer_index)]);
 
                     // Do the write.
                     self.buffer.replace(buffer);
@@ -264,7 +271,11 @@ impl<F: hil::flash::Flash> hil::flash::Client<F> for NonvolatileToPages<'_, F> {
         }
     }
 
-    fn write_complete(&self, pagebuffer: &'static mut F::Page, _error: hil::flash::Error) {
+    fn write_complete(
+        &self,
+        pagebuffer: &'static mut F::Page,
+        _result: Result<(), hil::flash::Error>,
+    ) {
         // After a write we could be done, need to do another write, or need to
         // do a read.
         self.buffer.take().map(move |buffer| {
@@ -282,9 +293,8 @@ impl<F: hil::flash::Flash> hil::flash::Client<F> for NonvolatileToPages<'_, F> {
                 let page_number = self.address.get() / page_size;
 
                 // Copy data into page buffer.
-                for i in 0..page_size {
-                    pagebuffer.as_mut()[i] = buffer[buffer_index + i];
-                }
+                pagebuffer.as_mut()[..page_size]
+                    .copy_from_slice(&buffer[buffer_index..(page_size + buffer_index)]);
 
                 self.buffer.replace(buffer);
                 self.remaining_length.subtract(page_size);
@@ -306,5 +316,5 @@ impl<F: hil::flash::Flash> hil::flash::Client<F> for NonvolatileToPages<'_, F> {
         });
     }
 
-    fn erase_complete(&self, _error: hil::flash::Error) {}
+    fn erase_complete(&self, _result: Result<(), hil::flash::Error>) {}
 }

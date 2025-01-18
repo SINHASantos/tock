@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Temperature sensor driver, nRF5X-family
 //!
 //! Generates a simple temperature measurement without sampling
@@ -124,8 +128,8 @@ impl<'a> Temp<'a> {
         self.disable_interrupts();
 
         // get temperature
-        // Result of temperature measurement in °C, 2's complement format, 0.25 °C
-        let temp = (self.registers.temp.get() as i32 / 4) * 100;
+        // Result of temperature measurement in °C, 2's complement format, 0.25 °C steps
+        let temp = (self.registers.temp.get() as i32 * 100) / 4;
 
         // stop measurement
         self.registers.task_stop.write(Task::ENABLE::SET);

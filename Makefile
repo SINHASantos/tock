@@ -1,9 +1,13 @@
+# Licensed under the Apache License, Version 2.0 or the MIT License.
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+# Copyright Tock Contributors 2022.
+
 # For more information on Tock's make system and the CI setup, see the docs at
 # https://github.com/tock/tock/tree/master/doc/CodeReview.md#3-continuous-integration
 
 ################################################################################
 ##
-## Interal support that needs to run first
+## Internal support that needs to run first
 ##
 
 # First, need to fill out some variables that the Makefile will use
@@ -48,8 +52,11 @@ usage:
 	@echo "             doc: Builds Tock documentation for all boards"
 	@echo "           stack: Prints a basic stack frame analysis for all boards"
 	@echo "           clean: Clean all builds"
-	@echo "          format: Runs the rustfmt tool on all kernel sources"
+	@echo "    format-check: Checks for formatting errors in kernel sources"
 	@echo "            list: Lists available boards"
+	@echo
+	@echo "We also define the following aliases:"
+	@echo "          format: cargo fmt"
 	@echo
 	@echo "The make system also drives all continuous integration and testing:"
 	@echo "         $$(tput bold)prepush$$(tput sgr0): Fast checks to run before pushing changes upstream"
@@ -159,6 +166,7 @@ allstack stack stack-analysis:
 
 .PHONY: licensecheck
 licensecheck:
+	$(call banner,License checker)
 	@cargo run --manifest-path=tools/license-checker/Cargo.toml --release
 
 ## Commands
@@ -170,14 +178,15 @@ clean:
 	@echo "$$(tput bold)Clean ci-artifacts" && rm -rf tools/ci-artifacts
 
 .PHONY: fmt format
-fmt format: tools/.format_fresh
-	$(call banner,Formatting complete)
+fmt format:
+	$(call banner,Running \"cargo fmt\" -- for a complete format check run \"make format-check\")
+	cargo fmt
 
-# Get a list of all rust source files (everything fmt operates on)
-$(eval RUST_FILES_IN_TREE := $(shell (git ls-files | grep '\.rs$$') || find . -type f -name '*.rs'))
-tools/.format_fresh: $(RUST_FILES_IN_TREE)
-	@./tools/run_cargo_fmt.sh $(TOCK_FORMAT_MODE)
-	@touch tools/.format_fresh
+.PHONY: format-check
+format-check:
+	$(call banner,Formatting checker)
+	@./tools/check_format.sh
+	$(call banner,Check for formatting complete)
 
 .PHONY: list
 list:
@@ -210,7 +219,7 @@ ci-nosetup:
 # This is designed for developers, to be run often and before submitting code upstream.
 .PHONY: prepush
 prepush:\
-	format\
+	format-check\
 	ci-job-clippy\
 	ci-job-syntax\
 	licensecheck
@@ -269,12 +278,14 @@ ci: ci-help
 ## These each correspond to a 'status check' line in GitHub PR UX.
 ##
 ## These recipes *must not* contain rules, they simply collect jobs.
-
-# n.b. This *replicates* configuration in the github workflow file
-# to allow the GitHub UX to show these subtasks correctly
+##
+## NOTE: If you modify these, you must also modify the ci.yml CI workflow file
+##       in `.github/workflows`. This *replicates* configuration in the github
+##       workflow file to allow the GitHub UX to show these subtasks correctly.
 .PHONY: ci-runner-github
 ci-runner-github:\
 	ci-runner-github-format\
+	ci-runner-github-clippy\
 	ci-runner-github-build\
 	ci-runner-github-tests\
 	ci-runner-github-qemu
@@ -283,17 +294,21 @@ ci-runner-github:\
 .PHONY: ci-runner-github-format
 ci-runner-github-format:\
 	ci-job-format\
-	ci-job-clippy\
-	ci-job-markdown-toc
+	ci-job-markdown-toc\
+	ci-job-readme-check
 	$(call banner,CI-Runner: GitHub format runner DONE)
+
+.PHONY: ci-runner-github-clippy
+ci-runner-github-clippy:\
+	ci-job-clippy
+	$(call banner,CI-Runner: GitHub clippy runner DONE)
 
 .PHONY: ci-runner-github-build
 ci-runner-github-build:\
 	ci-job-syntax\
 	ci-job-compilation\
 	ci-job-debug-support-targets\
-	ci-job-collect-artifacts\
-	ci-job-cargo-test-build
+	ci-job-collect-artifacts
 	$(call banner,CI-Runner: GitHub build runner DONE)
 
 .PHONY: ci-runner-github-tests
@@ -304,7 +319,8 @@ ci-runner-github-tests:\
 	ci-job-capsules\
 	ci-job-chips\
 	ci-job-tools\
-	ci-job-miri
+	ci-job-cargo-test-build\
+	ci-job-miri # EXPERIMENTAL
 	$(call banner,CI-Runner: GitHub tests runner DONE)
 
 .PHONY: ci-runner-github-qemu
@@ -338,14 +354,8 @@ ci-runner-netlify:\
 
 ### ci-runner-github-format jobs:
 .PHONY: ci-job-format
-ci-job-format: licensecheck
-	$(call banner,CI-Job: Format Check)
-	@NOWARNINGS=true TOCK_FORMAT_MODE=diff $(MAKE) format
-
-.PHONY: ci-job-clippy
-ci-job-clippy:
-	$(call banner,CI-Job: Clippy)
-	@NOWARNINGS=true ./tools/run_clippy.sh
+ci-job-format: licensecheck format-check
+	$(call banner,CI-Job: Format Check DONE)
 
 define ci_setup_markdown_toc
 	$(call banner,CI-Setup: Install markdown-toc)
@@ -368,6 +378,29 @@ endef
 .PHONY: ci-job-markdown-toc
 ci-job-markdown-toc: ci-setup-markdown-toc
 	$(if $(CI_JOB_MARKDOWN),$(call ci_job_markdown_toc))
+
+define ci_job_readme_check
+	$(call banner,CI-Job: README Validation)
+	tools/check_boards_readme.py
+	tools/check_capsule_readme.py
+	tools/check-for-readmes.sh
+endef
+
+.PHONY: ci-job-readme-check
+ci-job-readme-check:
+	$(call ci_job_readme_check)
+
+
+
+### ci-runner-github-clippy jobs:
+.PHONY: ci-job-clippy
+ci-job-clippy:
+	$(call banner,CI-Job: Clippy)
+	@cargo clippy -- -D warnings
+	# Run `cargo clippy` in select boards so we run clippy with targets that
+	# actually check the arch-specific functions.
+	@cd boards/nordic/nrf52840dk && cargo clippy -- -D warnings
+	@cd boards/hifive1 && cargo clippy -- -D warnings
 
 
 
@@ -418,6 +451,7 @@ ci-job-libraries:
 	@cd libraries/riscv-csr && NOWARNINGS=true RUSTFLAGS="-D warnings" cargo test
 	@cd libraries/tock-cells && NOWARNINGS=true RUSTFLAGS="-D warnings" cargo test
 	@cd libraries/tock-register-interface && NOWARNINGS=true RUSTFLAGS="-D warnings" cargo test
+	@cd libraries/tickv && NOWARNINGS=true RUSTFLAGS="-D warnings" cargo test
 
 .PHONY: ci-job-archs
 ci-job-archs:
@@ -438,7 +472,9 @@ ci-job-kernel:
 ci-job-capsules:
 	$(call banner,CI-Job: Capsules)
 	@# Capsule initialization depends on board/chip specific imports, so ignore doc tests
-	@cd capsules && NOWARNINGS=true RUSTFLAGS="-D warnings" TOCK_KERNEL_VERSION=ci_test cargo test --lib --examples
+	@cd capsules/core && NOWARNINGS=true RUSTFLAGS="-D warnings" TOCK_KERNEL_VERSION=ci_test cargo test
+	@cd capsules/extra && NOWARNINGS=true RUSTFLAGS="-D warnings" TOCK_KERNEL_VERSION=ci_test cargo test
+	@cd capsules/system && NOWARNINGS=true RUSTFLAGS="-D warnings" TOCK_KERNEL_VERSION=ci_test cargo test
 
 .PHONY: ci-job-chips
 ci-job-chips:
@@ -487,12 +523,8 @@ ci-job-tools: ci-setup-tools
 	$(if $(CI_JOB_TOOLS),$(call ci_job_tools))
 
 
-.PHONY: ci-setup-miri
-ci-setup-miri:
-	@rustup component list | grep miri | grep -q installed || rustup component add miri
-
 .PHONY: ci-job-miri
-ci-job-miri: ci-setup-miri
+ci-job-miri:
 	$(call banner,CI-Job: Miri)
 	#
 	# Note: This is highly experimental and limited at the moment.
@@ -501,7 +533,9 @@ ci-job-miri: ci-setup-miri
 	@#cd libraries/tock-register-interface && NOWARNINGS=true cargo miri test
 	@cd kernel && NOWARNINGS=true cargo miri test
 	@for a in $$(tools/list_archs.sh); do cd arch/$$a && NOWARNINGS=true cargo miri test && cd ../..; done
-	@cd capsules && NOWARNINGS=true cargo miri test
+	@cd capsules/core && NOWARNINGS=true cargo miri test
+	@cd capsules/extra && NOWARNINGS=true cargo miri test
+	@cd capsules/system && NOWARNINGS=true cargo miri test
 	@for c in $$(tools/list_chips.sh); do cd chips/$$c && NOWARNINGS=true cargo miri test && cd ../..; done
 
 
@@ -509,10 +543,16 @@ ci-job-miri: ci-setup-miri
 ci-job-cargo-test-build:
 	@$(MAKE) NO_RUN="--no-run" -C "boards/opentitan/earlgrey-cw310" test
 	@$(MAKE) NO_RUN="--no-run" -C "boards/esp32-c3-devkitM-1" test
+	@$(MAKE) NO_RUN="--no-run" -C "boards/apollo3/lora_things_plus" test
+	@$(MAKE) NO_RUN="--no-run" -C "boards/apollo3/lora_things_plus" test-atecc508a
+	@$(MAKE) NO_RUN="--no-run" -C "boards/apollo3/lora_things_plus" test-chirp_i2c_moisture
+	@$(MAKE) NO_RUN="--no-run" -C "boards/apollo3/redboard_artemis_atp" test
+	@$(MAKE) NO_RUN="--no-run" -C "boards/apollo3/redboard_artemis_nano" test
+
+
 
 ### ci-runner-github-qemu jobs:
-
-QEMU_COMMIT_HASH=6dffbe36af79e26a4d23f94a9a1c1201de99c261
+QEMU_COMMIT_HASH=abb1565d3d863cf210f18f70c4a42b0f39b8ccdb
 define ci_setup_qemu_riscv
 	$(call banner,CI-Setup: Build QEMU)
 	@# Use the latest QEMU as it has OpenTitan support
@@ -533,15 +573,13 @@ ci-setup-qemu:
 		CI_JOB_QEMU_RISCV)
 	$(if $(CI_JOB_QEMU_RISCV),$(eval CI_JOB_QEMU := true))
 
-
-
 define ci_job_qemu
 	$(call banner,CI-Job: QEMU)
 	@cd tools/qemu-runner;\
-		PATH="$(shell pwd)/tools/qemu/build/riscv32-softmmu/:${PATH}"\
+		PATH="$(shell pwd)/tools/qemu/build/:${PATH}"\
 		NOWARNINGS=true cargo run
 	@cd boards/opentitan/earlgrey-cw310;\
-		PATH="$(shell pwd)/tools/qemu/build/riscv32-softmmu/:${PATH}"\
+		PATH="$(shell pwd)/tools/qemu/build/:${PATH}"\
 		make test
 endef
 
@@ -549,10 +587,6 @@ endef
 ci-job-qemu: ci-setup-qemu
 	$(if $(CI_JOB_QEMU),$(call ci_job_qemu))
 
-.PHONY: board-release-test
-board-release-test:
-	@cd tools/board-runner;\
-		cargo run ${TARGET}
 
 
 ### ci-runner-netlify jobs:
@@ -563,4 +597,9 @@ ci-job-rustdoc:
 
 ## End CI rules
 ##
-###################################################################
+################################################################################
+
+.PHONY: board-release-test
+board-release-test:
+	@cd tools/board-runner;\
+		cargo run ${TARGET}

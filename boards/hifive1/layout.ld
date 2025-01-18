@@ -1,3 +1,7 @@
+/* Licensed under the Apache License, Version 2.0 or the MIT License. */
+/* SPDX-License-Identifier: Apache-2.0 OR MIT                         */
+/* Copyright Tock Contributors 2023.                                  */
+
 /* The HiFive1a board has 512 MB of flash. The first 0x400000 is reserved for
  * the default bootloader provided by SiFive. We also reserve room for apps to
  * make all of the linker files work, but don't really support them on this
@@ -11,4 +15,4 @@ MEMORY
   ram (rwx) : ORIGIN = 0x80000000, LENGTH = 0x4000
 }
 
-INCLUDE ../kernel_layout.ld
+INCLUDE tock_kernel_layout.ld

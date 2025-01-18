@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 /// fmt contains formatting routines for LowLevelDebug's console messages as
 /// well as the buffer size necessary for the messages.
 use super::DebugEntry;
@@ -73,7 +77,7 @@ impl<'b> WriteAdapter<'b> {
     }
 }
 
-impl<'b> core::fmt::Write for WriteAdapter<'b> {
+impl core::fmt::Write for WriteAdapter<'_> {
     fn write_str(&mut self, msg: &str) -> core::fmt::Result {
         if let Some(slice) = self.buffer.get_mut(self.used..(self.used + msg.len())) {
             slice.copy_from_slice(msg.as_bytes());

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Debug capsule to cause a button press to trigger a kernel panic.
 //!
 //! This can be useful especially when developing or debugging console
@@ -10,7 +14,7 @@
 //!
 //! Alternatively, a low-level way of using the capsule is as follows.
 //!
-//! ```rust
+//! ```rust,ignore
 //! let panic_button = static_init!(
 //!     PanicButton,
 //!     PanicButton::new(

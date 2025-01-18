@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Provides userspace with virtualized access to 9DOF sensors.
 //!
 //! Usage
@@ -5,7 +9,7 @@
 //!
 //! You need a device that provides the `hil::sensors::NineDof` trait.
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use kernel::{hil, static_init};
 //!
 //! let grant_cap = create_capability!(capabilities::MemoryAllocationCapability);
@@ -64,7 +68,7 @@ impl<'a> NineDof<'a> {
         grant: Grant<App, UpcallCount<1>, AllowRoCount<0>, AllowRwCount<0>>,
     ) -> NineDof<'a> {
         NineDof {
-            drivers: drivers,
+            drivers,
             apps: grant,
             current_app: OptionalCell::empty(),
         }
@@ -89,7 +93,7 @@ impl<'a> NineDof<'a> {
                     }
                     CommandReturn::from(value)
                 } else {
-                    if app.pending_command == true {
+                    if app.pending_command {
                         CommandReturn::failure(ErrorCode::BUSY)
                     } else {
                         app.pending_command = true;

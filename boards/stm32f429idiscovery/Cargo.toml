@@ -1,9 +1,13 @@
+# Licensed under the Apache License, Version 2.0 or the MIT License.
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+# Copyright Tock Contributors 2022.
+
 [package]
 name = "stm32f429idiscovery"
 version.workspace = true
 authors.workspace = true
-build = "build.rs"
-edition = "2018"
+edition.workspace = true
+build = "../build.rs"
 
 [dependencies]
 components = { path = "../components" }
@@ -13,3 +17,10 @@ stm32f429zi = { path = "../../chips/stm32f429zi" }
 
 capsules-core = { path = "../../capsules/core" }
 capsules-extra = { path = "../../capsules/extra" }
+capsules-system = { path = "../../capsules/system" }
+
+[build-dependencies]
+tock_build_scripts = { path = "../build_scripts" }
+
+[lints]
+workspace = true

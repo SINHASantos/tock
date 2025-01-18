@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Window watchdog timer
 
 use crate::rcc;
@@ -141,7 +145,7 @@ impl ClockInterface for WdgClock<'_> {
     }
 }
 
-impl<'a> kernel::platform::watchdog::WatchDog for WindoWdg<'a> {
+impl kernel::platform::watchdog::WatchDog for WindoWdg<'_> {
     fn setup(&self) {
         if self.enabled.get() {
             self.start();

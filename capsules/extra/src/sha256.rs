@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Software implementation of SHA-256.
 //!
 //! Implementation is based on the Wikipedia description of the
@@ -8,13 +12,14 @@
 use core::cell::Cell;
 use kernel::deferred_call::{DeferredCall, DeferredCallClient};
 
-use kernel::hil::digest::Client;
 use kernel::hil::digest::Sha256;
+use kernel::hil::digest::{Client, ClientData, ClientHash, ClientVerify};
+use kernel::hil::digest::{ClientDataHash, ClientDataVerify, DigestDataHash, DigestDataVerify};
 use kernel::hil::digest::{Digest, DigestData, DigestHash, DigestVerify};
 use kernel::utilities::cells::{MapCell, OptionalCell};
-use kernel::utilities::leasable_buffer::LeasableBuffer;
-use kernel::utilities::leasable_buffer::LeasableBufferDynamic;
-use kernel::utilities::leasable_buffer::LeasableMutableBuffer;
+use kernel::utilities::leasable_buffer::SubSlice;
+use kernel::utilities::leasable_buffer::SubSliceMut;
+use kernel::utilities::leasable_buffer::SubSliceMutImmut;
 use kernel::ErrorCode;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -47,7 +52,7 @@ pub struct Sha256Software<'a> {
     state: Cell<State>,
 
     client: OptionalCell<&'a dyn Client<SHA_256_OUTPUT_LEN_BYTES>>,
-    input_data: OptionalCell<LeasableBufferDynamic<'static, u8>>,
+    input_data: OptionalCell<SubSliceMutImmut<'static, u8>>,
     data_buffer: MapCell<[u8; SHA_BLOCK_LEN_BYTES]>,
     buffered_length: Cell<usize>,
     total_length: Cell<usize>,
@@ -59,7 +64,7 @@ pub struct Sha256Software<'a> {
     deferred_call: DeferredCall,
 }
 
-impl<'a> Sha256Software<'a> {
+impl Sha256Software<'_> {
     pub fn new() -> Self {
         let s = Self {
             state: Cell::new(State::Idle),
@@ -121,7 +126,7 @@ impl<'a> Sha256Software<'a> {
                     b[i] = 0;
                 }
             });
-            buffered_length = buffered_length - 64;
+            buffered_length -= 64;
         }
         if buffered_length < 64 {
             self.data_buffer.map(|b| {
@@ -135,7 +140,7 @@ impl<'a> Sha256Software<'a> {
             // Append the 1
             b.get_mut(buffered_length).map(|d| *d = 0x80);
             //b[buffered_length] = 0x80;
-            buffered_length = buffered_length + 1;
+            buffered_length += 1;
             // The length is 56 because of the 8 bytes appended.
             // Since a block is 64 bytes, this means the last block
             // must have at most 56 bytes including the appended 1, or
@@ -242,7 +247,7 @@ impl<'a> Sha256Software<'a> {
         self.perform_sha(&mut message_schedule);
     }
 
-    fn compute_block(&self, data: &mut [u8; 64]) {
+    fn compute_block(&self, data: &[u8; 64]) {
         self.compute_buffer(data);
     }
 
@@ -294,14 +299,14 @@ impl<'a> Sha256Software<'a> {
 impl<'a> DigestData<'a, 32> for Sha256Software<'a> {
     fn add_data(
         &self,
-        data: LeasableBuffer<'static, u8>,
-    ) -> Result<(), (ErrorCode, LeasableBuffer<'static, u8>)> {
+        data: SubSlice<'static, u8>,
+    ) -> Result<(), (ErrorCode, SubSlice<'static, u8>)> {
         if self.busy() {
             Err((ErrorCode::BUSY, data))
         } else {
             self.state.set(State::Data);
             self.deferred_call.set();
-            self.input_data.set(LeasableBufferDynamic::Immutable(data));
+            self.input_data.set(SubSliceMutImmut::Immutable(data));
             self.compute_sha256();
             Ok(())
         }
@@ -309,14 +314,14 @@ impl<'a> DigestData<'a, 32> for Sha256Software<'a> {
 
     fn add_mut_data(
         &self,
-        data: LeasableMutableBuffer<'static, u8>,
-    ) -> Result<(), (ErrorCode, LeasableMutableBuffer<'static, u8>)> {
+        data: SubSliceMut<'static, u8>,
+    ) -> Result<(), (ErrorCode, SubSliceMut<'static, u8>)> {
         if self.busy() {
             Err((ErrorCode::BUSY, data))
         } else {
             self.state.set(State::Data);
             self.deferred_call.set();
-            self.input_data.set(LeasableBufferDynamic::Mutable(data));
+            self.input_data.set(SubSliceMutImmut::Mutable(data));
             self.compute_sha256();
             Ok(())
         }
@@ -324,6 +329,10 @@ impl<'a> DigestData<'a, 32> for Sha256Software<'a> {
 
     fn clear_data(&self) {
         self.initialize();
+    }
+
+    fn set_data_client(&'a self, _client: &'a (dyn ClientData<32> + 'a)) {
+        unimplemented!()
     }
 }
 
@@ -349,6 +358,10 @@ impl<'a> DigestHash<'a, 32> for Sha256Software<'a> {
             Ok(())
         }
     }
+
+    fn set_hash_client(&'a self, _client: &'a (dyn ClientHash<32> + 'a)) {
+        unimplemented!()
+    }
 }
 
 impl<'a> DigestVerify<'a, 32> for Sha256Software<'a> {
@@ -366,6 +379,10 @@ impl<'a> DigestVerify<'a, 32> for Sha256Software<'a> {
             Ok(())
         }
     }
+
+    fn set_verify_client(&'a self, _client: &'a (dyn ClientVerify<32> + 'a)) {
+        unimplemented!()
+    }
 }
 
 impl<'a> Digest<'a, 32> for Sha256Software<'a> {
@@ -374,7 +391,7 @@ impl<'a> Digest<'a, 32> for Sha256Software<'a> {
     }
 }
 
-impl<'a> DeferredCallClient for Sha256Software<'a> {
+impl DeferredCallClient for Sha256Software<'_> {
     fn handle_deferred_call(&self) {
         let prior = self.state.get();
         self.state.set(State::Idle);
@@ -407,12 +424,12 @@ impl<'a> DeferredCallClient for Sha256Software<'a> {
                 let data = self.input_data.take().unwrap();
                 self.state.set(State::Idle);
                 match data {
-                    LeasableBufferDynamic::Mutable(buffer) => {
+                    SubSliceMutImmut::Mutable(buffer) => {
                         self.client.map(|client| {
                             client.add_mut_data_done(Ok(()), buffer);
                         });
                     }
-                    LeasableBufferDynamic::Immutable(buffer) => {
+                    SubSliceMutImmut::Immutable(buffer) => {
                         self.client.map(|client| {
                             client.add_data_done(Ok(()), buffer);
                         });
@@ -433,12 +450,12 @@ impl<'a> DeferredCallClient for Sha256Software<'a> {
                 self.clear_data();
                 let data = self.input_data.take().unwrap();
                 match data {
-                    LeasableBufferDynamic::Mutable(buffer) => {
+                    SubSliceMutImmut::Mutable(buffer) => {
                         self.client.map(|client| {
                             client.add_mut_data_done(Err(ErrorCode::CANCEL), buffer);
                         });
                     }
-                    LeasableBufferDynamic::Immutable(buffer) => {
+                    SubSliceMutImmut::Immutable(buffer) => {
                         self.client.map(|client| {
                             client.add_data_done(Err(ErrorCode::CANCEL), buffer);
                         });
@@ -473,5 +490,17 @@ impl Sha256 for Sha256Software<'_> {
     /// Call before adding data to perform Sha256
     fn set_mode_sha256(&self) -> Result<(), ErrorCode> {
         Ok(())
+    }
+}
+
+impl<'a> DigestDataHash<'a, 32> for Sha256Software<'a> {
+    fn set_client(&'a self, _client: &'a dyn ClientDataHash<32>) {
+        unimplemented!()
+    }
+}
+
+impl<'a> DigestDataVerify<'a, 32> for Sha256Software<'a> {
+    fn set_client(&'a self, _client: &'a dyn ClientDataVerify<32>) {
+        unimplemented!()
     }
 }

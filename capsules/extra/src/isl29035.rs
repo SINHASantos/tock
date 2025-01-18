@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! SyscallDriver for the ISL29035 digital light sensor.
 //!
 //! <http://bit.ly/2rA00cH>
@@ -12,7 +16,7 @@
 //! Usage
 //! -----
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use kernel::static_init;
 //! # use capsules::virtual_alarm::VirtualMuxAlarm;
 //!
@@ -60,8 +64,8 @@ pub struct Isl29035<'a, A: time::Alarm<'a>> {
 impl<'a, A: time::Alarm<'a>> Isl29035<'a, A> {
     pub fn new(i2c: &'a dyn I2CDevice, alarm: &'a A, buffer: &'static mut [u8]) -> Isl29035<'a, A> {
         Isl29035 {
-            i2c: i2c,
-            alarm: alarm,
+            i2c,
+            alarm,
             state: Cell::new(State::Disabled),
             buffer: TakeCell::new(buffer),
             client: OptionalCell::empty(),
@@ -117,7 +121,7 @@ impl<'a, A: time::Alarm<'a>> time::AlarmClient for Isl29035<'a, A> {
             // Turn on i2c to send commands.
             self.i2c.enable();
 
-            buffer[0] = 0x02 as u8;
+            buffer[0] = 0x02_u8;
             if let Err((_error, buf)) = self.i2c.write_read(buffer, 1, 2) {
                 self.buffer.replace(buf);
                 self.i2c.disable();

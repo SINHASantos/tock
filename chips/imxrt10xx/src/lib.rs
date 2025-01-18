@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Peripheral implementations for the IMXRT1050 and IMXRT1060 MCUs.
 //!
 //! imxrt1050 chip: <https://www.nxp.com/design/development-boards/i-mx-evaluation-and-development-boards/i-mx-rt1050-evaluation-kit:MIMXRT1050-EVK>
@@ -225,9 +229,7 @@ pub unsafe fn init() {
     cortexm7::nvic::disable_all();
     cortexm7::nvic::clear_all_pending();
 
-    cortexm7::scb::set_vector_table_offset(
-        &BASE_VECTORS as *const [unsafe extern "C" fn(); 16] as *const (),
-    );
+    cortexm7::scb::set_vector_table_offset(core::ptr::addr_of!(BASE_VECTORS) as *const ());
 
     cortexm7::nvic::enable_all();
 }

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! `udp_lowpan_test.rs`: Kernel test suite for the UDP/6LoWPAN stack
 //!
 //! This file tests port binding and sending and receiving messages from kernel space.
@@ -128,6 +132,7 @@ use capsules_extra::net::udp::udp_recv::MuxUdpReceiver;
 use capsules_extra::net::udp::udp_send::MuxUdpSender;
 use capsules_extra::test::udp::MockUdp;
 use core::cell::Cell;
+use core::ptr::addr_of_mut;
 use kernel::capabilities::NetworkCapabilityCreationCapability;
 use kernel::component::Component;
 use kernel::create_capability;
@@ -188,7 +193,7 @@ pub unsafe fn initialize_all(
         udp_recv_mux,
         port_table,
         mux_alarm,
-        &mut UDP_PAYLOAD1,
+        &mut *addr_of_mut!(UDP_PAYLOAD1),
         1, //id
         3, //dst_port
         net_cap,
@@ -201,7 +206,7 @@ pub unsafe fn initialize_all(
         udp_recv_mux,
         port_table,
         mux_alarm,
-        &mut UDP_PAYLOAD2,
+        &mut *addr_of_mut!(UDP_PAYLOAD2),
         2, //id
         4, //dst_port
         net_cap,
@@ -233,11 +238,11 @@ impl<'a, A: time::Alarm<'a>> LowpanTest<'a, A> {
         mock_udp2: &'static MockUdp<'a, A>,
     ) -> LowpanTest<'a, A> {
         LowpanTest {
-            alarm: alarm,
+            alarm,
             test_counter: Cell::new(0),
-            port_table: port_table,
-            mock_udp1: mock_udp1,
-            mock_udp2: mock_udp2,
+            port_table,
+            mock_udp1,
+            mock_udp2,
             test_mode: Cell::new(TestMode::DefaultMode),
         }
     }

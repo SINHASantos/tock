@@ -1,7 +1,10 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use core::fmt::Write;
 use core::panic::PanicInfo;
 use core::str;
-use cortexm4;
 use kernel::debug;
 use kernel::debug::IoWrite;
 use kernel::hil::led;
@@ -25,7 +28,7 @@ impl Write for Writer {
 }
 
 impl IoWrite for Writer {
-    fn write(&mut self, buf: &[u8]) {
+    fn write(&mut self, buf: &[u8]) -> usize {
         // Here, we create a second instance of the USART0 struct.
         // This is okay because we only call this during a panic, and
         // we will never actually process the interrupts
@@ -47,6 +50,7 @@ impl IoWrite for Writer {
             uart.send_byte(regs_manager, c);
             while !uart.tx_ready(regs_manager) {}
         }
+        buf.len()
     }
 }
 
@@ -54,8 +58,10 @@ impl IoWrite for Writer {
 #[cfg(not(test))]
 #[no_mangle]
 #[panic_handler]
-pub unsafe extern "C" fn panic_fmt(pi: &PanicInfo) -> ! {
+pub unsafe fn panic_fmt(pi: &PanicInfo) -> ! {
     // turn off the non panic leds, just in case
+
+    use core::ptr::{addr_of, addr_of_mut};
     let led_green = sam4l::gpio::GPIOPin::new(sam4l::gpio::Pin::PA14);
     led_green.enable_output();
     led_green.set();
@@ -65,14 +71,14 @@ pub unsafe extern "C" fn panic_fmt(pi: &PanicInfo) -> ! {
 
     let red_pin = sam4l::gpio::GPIOPin::new(sam4l::gpio::Pin::PA13);
     let led_red = &mut led::LedLow::new(&red_pin);
-    let writer = &mut WRITER;
+    let writer = &mut *addr_of_mut!(WRITER);
     debug::panic(
         &mut [led_red],
         writer,
         pi,
         &cortexm4::support::nop,
-        &PROCESSES,
-        &CHIP,
-        &PROCESS_PRINTER,
+        &*addr_of!(PROCESSES),
+        &*addr_of!(CHIP),
+        &*addr_of!(PROCESS_PRINTER),
     )
 }

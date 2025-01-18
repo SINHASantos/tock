@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! `NumericCellExt` extension trait for `Cell`s.
 //!
 //! Adds a suite of convenience functions to `Cell`s that contain numeric
@@ -13,7 +17,6 @@
 //! ```
 
 use core::cell::Cell;
-use core::marker::Copy;
 use core::ops::{Add, Sub};
 
 pub trait NumericCellExt<T>
@@ -52,22 +55,22 @@ where
     }
 
     fn increment(&self) {
-        self.set(self.get() + T::from(1 as usize));
+        self.set(self.get() + T::from(1_usize));
     }
 
     fn decrement(&self) {
-        self.set(self.get() - T::from(1 as usize));
+        self.set(self.get() - T::from(1_usize));
     }
 
     fn get_and_increment(&self) -> T {
         let ret = self.get();
-        self.set(ret + T::from(1 as usize));
+        self.set(ret + T::from(1_usize));
         ret
     }
 
     fn get_and_decrement(&self) -> T {
         let ret = self.get();
-        self.set(ret - T::from(1 as usize));
+        self.set(ret - T::from(1_usize));
         ret
     }
 }

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Test reception on the virtualized UART by creating two readers that
 //! read in parallel. To add this test, include the line
 //! ```
@@ -44,6 +48,8 @@
 //! 61
 //! ```
 
+use core::ptr::addr_of_mut;
+
 use capsules_core::test::virtual_uart::TestVirtualUartReceive;
 use capsules_core::virtualizers::virtual_uart::{MuxUart, UartDevice};
 use kernel::debug;
@@ -66,7 +72,7 @@ unsafe fn static_init_test_receive_small(
     device.setup();
     let test = static_init!(
         TestVirtualUartReceive,
-        TestVirtualUartReceive::new(device, &mut SMALL)
+        TestVirtualUartReceive::new(device, &mut *addr_of_mut!(SMALL))
     );
     device.set_receive_client(test);
     test
@@ -80,7 +86,7 @@ unsafe fn static_init_test_receive_large(
     device.setup();
     let test = static_init!(
         TestVirtualUartReceive,
-        TestVirtualUartReceive::new(device, &mut BUFFER)
+        TestVirtualUartReceive::new(device, &mut *addr_of_mut!(BUFFER))
     );
     device.set_receive_client(test);
     test

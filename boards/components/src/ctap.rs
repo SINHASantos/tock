@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component for CTAP HID over USB support.
 //!
 //! This provides a component for using the CTAP driver. This allows for
@@ -39,9 +43,9 @@ macro_rules! ctap_component_static {
     ($U:ty $(,)?) => {{
         let hid = kernel::static_buf!(capsules_extra::usb::ctap::CtapHid<'static, $U>);
         let driver = kernel::static_buf!(
-            capsules_extra::ctap::CtapDriver<
+            capsules_extra::usb_hid_driver::UsbHidDriver<
                 'static,
-                capsules_extra::usb::ctap::CtapHid<'static, $U>,
+                capsules_extra::usb::usb_hid_driver::UsbHidDriver<'static, $U>,
             >
         );
         let send_buffer = kernel::static_buf!([u8; 64]);
@@ -84,7 +88,7 @@ impl<U: 'static + hil::usb::UsbController<'static>> Component for CtapComponent<
     type StaticInput = (
         &'static mut MaybeUninit<capsules_extra::usb::ctap::CtapHid<'static, U>>,
         &'static mut MaybeUninit<
-            capsules_extra::ctap::CtapDriver<
+            capsules_extra::usb_hid_driver::UsbHidDriver<
                 'static,
                 capsules_extra::usb::ctap::CtapHid<'static, U>,
             >,
@@ -94,7 +98,7 @@ impl<U: 'static + hil::usb::UsbController<'static>> Component for CtapComponent<
     );
     type Output = (
         &'static capsules_extra::usb::ctap::CtapHid<'static, U>,
-        &'static capsules_extra::ctap::CtapDriver<
+        &'static capsules_extra::usb_hid_driver::UsbHidDriver<
             'static,
             capsules_extra::usb::ctap::CtapHid<'static, U>,
         >,
@@ -114,8 +118,8 @@ impl<U: 'static + hil::usb::UsbController<'static>> Component for CtapComponent<
         let send_buffer = s.2.write([0; 64]);
         let recv_buffer = s.3.write([0; 64]);
 
-        let ctap_driver = s.1.write(capsules_extra::ctap::CtapDriver::new(
-            Some(ctap),
+        let ctap_driver = s.1.write(capsules_extra::usb_hid_driver::UsbHidDriver::new(
+            ctap,
             send_buffer,
             recv_buffer,
             self.board_kernel.create_grant(self.driver_num, &grant_cap),

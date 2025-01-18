@@ -1,8 +1,11 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Interface for I2C master and slave peripherals.
 
 use crate::ErrorCode;
 
-use core::convert::Into;
 use core::fmt;
 use core::fmt::{Display, Formatter};
 
@@ -32,14 +35,14 @@ pub enum Error {
     Busy,
 }
 
-impl Into<ErrorCode> for Error {
-    fn into(self) -> ErrorCode {
-        match self {
-            Self::AddressNak | Self::DataNak => ErrorCode::NOACK,
-            Self::ArbitrationLost => ErrorCode::RESERVE,
-            Self::Overrun => ErrorCode::SIZE,
-            Self::NotSupported => ErrorCode::NOSUPPORT,
-            Self::Busy => ErrorCode::BUSY,
+impl From<Error> for ErrorCode {
+    fn from(val: Error) -> Self {
+        match val {
+            Error::AddressNak | Error::DataNak => ErrorCode::NOACK,
+            Error::ArbitrationLost => ErrorCode::RESERVE,
+            Error::Overrun => ErrorCode::SIZE,
+            Error::NotSupported => ErrorCode::NOSUPPORT,
+            Error::Busy => ErrorCode::BUSY,
         }
     }
 }
@@ -66,8 +69,8 @@ pub enum SlaveTransmissionType {
 }
 
 /// Interface for an I2C Master hardware driver.
-pub trait I2CMaster {
-    fn set_master_client(&self, master_client: &'static dyn I2CHwMasterClient);
+pub trait I2CMaster<'a> {
+    fn set_master_client(&self, master_client: &'a dyn I2CHwMasterClient);
     fn enable(&self);
     fn disable(&self);
     fn write_read(
@@ -94,7 +97,7 @@ pub trait I2CMaster {
 /// Interface for an SMBus Master hardware driver.
 /// The device implementing this will also seperately implement
 /// I2CMaster.
-pub trait SMBusMaster: I2CMaster {
+pub trait SMBusMaster<'a>: I2CMaster<'a> {
     /// Write data then read data via the I2C Master device in an SMBus
     /// compatible way.
     ///
@@ -155,8 +158,8 @@ pub trait SMBusMaster: I2CMaster {
 }
 
 /// Interface for an I2C Slave hardware driver.
-pub trait I2CSlave {
-    fn set_slave_client(&self, slave_client: &'static dyn I2CHwSlaveClient);
+pub trait I2CSlave<'a> {
+    fn set_slave_client(&self, slave_client: &'a dyn I2CHwSlaveClient);
     fn enable(&self);
     fn disable(&self);
     fn set_address(&self, addr: u8) -> Result<(), Error>;
@@ -175,9 +178,9 @@ pub trait I2CSlave {
 
 /// Convenience type for capsules that need hardware that supports both
 /// Master and Slave modes.
-pub trait I2CMasterSlave: I2CMaster + I2CSlave {}
+pub trait I2CMasterSlave<'a>: I2CMaster<'a> + I2CSlave<'a> {}
 // Provide blanket implementations for trait group
-impl<T: I2CMaster + I2CSlave> I2CMasterSlave for T {}
+// impl<T: I2CMaster + I2CSlave> I2CMasterSlave for T {}
 
 /// Client interface for capsules that use I2CMaster devices.
 pub trait I2CHwMasterClient {
@@ -287,4 +290,67 @@ pub trait I2CClient {
     /// Called when an I2C command completed. The `error` denotes whether the command completed
     /// successfully or if an error occured.
     fn command_complete(&self, buffer: &'static mut [u8], status: Result<(), Error>);
+}
+
+pub struct NoSMBus;
+
+impl<'a> I2CMaster<'a> for NoSMBus {
+    fn set_master_client(&self, _master_client: &'a dyn I2CHwMasterClient) {}
+    fn enable(&self) {}
+    fn disable(&self) {}
+    fn write_read(
+        &self,
+        _addr: u8,
+        data: &'static mut [u8],
+        _write_len: usize,
+        _read_len: usize,
+    ) -> Result<(), (Error, &'static mut [u8])> {
+        Err((Error::NotSupported, data))
+    }
+    fn write(
+        &self,
+        _addr: u8,
+        data: &'static mut [u8],
+        _len: usize,
+    ) -> Result<(), (Error, &'static mut [u8])> {
+        Err((Error::NotSupported, data))
+    }
+    fn read(
+        &self,
+        _addr: u8,
+        buffer: &'static mut [u8],
+        _len: usize,
+    ) -> Result<(), (Error, &'static mut [u8])> {
+        Err((Error::NotSupported, buffer))
+    }
+}
+
+impl SMBusMaster<'_> for NoSMBus {
+    fn smbus_write_read(
+        &self,
+        _addr: u8,
+        data: &'static mut [u8],
+        _write_len: usize,
+        _read_len: usize,
+    ) -> Result<(), (Error, &'static mut [u8])> {
+        Err((Error::NotSupported, data))
+    }
+
+    fn smbus_write(
+        &self,
+        _addr: u8,
+        data: &'static mut [u8],
+        _len: usize,
+    ) -> Result<(), (Error, &'static mut [u8])> {
+        Err((Error::NotSupported, data))
+    }
+
+    fn smbus_read(
+        &self,
+        _addr: u8,
+        buffer: &'static mut [u8],
+        _len: usize,
+    ) -> Result<(), (Error, &'static mut [u8])> {
+        Err((Error::NotSupported, buffer))
+    }
 }

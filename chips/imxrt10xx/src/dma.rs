@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Direct Memory Access (DMA) channels and multiplexer
 //!
 //! ## DMAMUX Channel Configuration Options
@@ -582,7 +586,7 @@ impl DmaChannel {
             TransferAttributes::SSIZE.val(T::DATA_TRANSFER_ID) + TransferAttributes::SMOD.val(0),
         );
         tcd.nbytes.set(mem::size_of::<T>() as u32);
-        tcd.slast.set((-1 * (buffer.len() as i32)) as u32);
+        tcd.slast.set((-(buffer.len() as i32)) as u32);
         let iterations: u16 = buffer.len() as u16;
         tcd.biter.set(iterations);
         tcd.citer.set(iterations);
@@ -600,7 +604,7 @@ impl DmaChannel {
             TransferAttributes::DSIZE.val(T::DATA_TRANSFER_ID) + TransferAttributes::DMOD.val(0),
         );
         tcd.nbytes.set(mem::size_of::<T>() as u32);
-        tcd.dlast_sga.set((-1 * (buffer.len() as i32)) as u32);
+        tcd.dlast_sga.set((-(buffer.len() as i32)) as u32);
         let iterations: u16 = buffer.len() as u16;
         tcd.biter.set(iterations);
         tcd.citer.set(iterations);

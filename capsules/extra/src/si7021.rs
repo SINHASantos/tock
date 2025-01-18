@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! SyscallDriver for the Silicon Labs SI7021 temperature/humidity sensor.
 //!
 //! <https://www.silabs.com/products/sensors/humidity-sensors/Pages/si7013-20-21.aspx>
@@ -17,7 +21,7 @@
 //! Usage
 //! -----
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use kernel::static_init;
 //! # use capsules::virtual_alarm::VirtualMuxAlarm;
 //!
@@ -93,8 +97,8 @@ enum OnDeck {
     Humidity,
 }
 
-pub struct SI7021<'a, A: time::Alarm<'a>> {
-    i2c: &'a dyn i2c::I2CDevice,
+pub struct SI7021<'a, A: time::Alarm<'a>, I: i2c::I2CDevice> {
+    i2c: &'a I,
     alarm: &'a A,
     temp_callback: OptionalCell<&'a dyn kernel::hil::sensors::TemperatureClient>,
     humidity_callback: OptionalCell<&'a dyn kernel::hil::sensors::HumidityClient>,
@@ -103,16 +107,12 @@ pub struct SI7021<'a, A: time::Alarm<'a>> {
     buffer: TakeCell<'static, [u8]>,
 }
 
-impl<'a, A: time::Alarm<'a>> SI7021<'a, A> {
-    pub fn new(
-        i2c: &'a dyn i2c::I2CDevice,
-        alarm: &'a A,
-        buffer: &'static mut [u8],
-    ) -> SI7021<'a, A> {
+impl<'a, A: time::Alarm<'a>, I: i2c::I2CDevice> SI7021<'a, A, I> {
+    pub fn new(i2c: &'a I, alarm: &'a A, buffer: &'static mut [u8]) -> SI7021<'a, A, I> {
         // setup and return struct
         SI7021 {
-            i2c: i2c,
-            alarm: alarm,
+            i2c,
+            alarm,
             temp_callback: OptionalCell::empty(),
             humidity_callback: OptionalCell::empty(),
             state: Cell::new(State::Idle),
@@ -150,7 +150,7 @@ impl<'a, A: time::Alarm<'a>> SI7021<'a, A> {
     }
 }
 
-impl<'a, A: time::Alarm<'a>> i2c::I2CClient for SI7021<'a, A> {
+impl<'a, A: time::Alarm<'a>, I: i2c::I2CDevice> i2c::I2CClient for SI7021<'a, A, I> {
     fn command_complete(&self, buffer: &'static mut [u8], _status: Result<(), i2c::Error>) {
         match self.state.get() {
             State::SelectElectronicId1 => {
@@ -201,7 +201,7 @@ impl<'a, A: time::Alarm<'a>> i2c::I2CClient for SI7021<'a, A> {
             }
             State::GotTempMeasurement => {
                 // Temperature in hundredths of degrees centigrade
-                let temp_raw = (((buffer[0] as u32) << 8) | (buffer[1] as u32)) as u32;
+                let temp_raw = ((buffer[0] as u32) << 8) | (buffer[1] as u32);
                 let temp = ((temp_raw * 17572) / 65536) as i32 - 4685;
 
                 self.temp_callback.map(|cb| cb.callback(Ok(temp)));
@@ -221,7 +221,7 @@ impl<'a, A: time::Alarm<'a>> i2c::I2CClient for SI7021<'a, A> {
             }
             State::GotRhMeasurement => {
                 // Humidity in hundredths of percent
-                let humidity_raw = (((buffer[0] as u32) << 8) | (buffer[1] as u32)) as u32;
+                let humidity_raw = ((buffer[0] as u32) << 8) | (buffer[1] as u32);
                 let humidity = (((humidity_raw * 125 * 100) / 65536) - 600) as u16;
 
                 self.humidity_callback
@@ -244,7 +244,9 @@ impl<'a, A: time::Alarm<'a>> i2c::I2CClient for SI7021<'a, A> {
     }
 }
 
-impl<'a, A: time::Alarm<'a>> kernel::hil::sensors::TemperatureDriver<'a> for SI7021<'a, A> {
+impl<'a, A: time::Alarm<'a>, I: i2c::I2CDevice> kernel::hil::sensors::TemperatureDriver<'a>
+    for SI7021<'a, A, I>
+{
     fn read_temperature(&self) -> Result<(), ErrorCode> {
         // This chip handles both humidity and temperature measurements. We can
         // only start a new measurement if the chip is idle. If it isn't then we
@@ -277,7 +279,9 @@ impl<'a, A: time::Alarm<'a>> kernel::hil::sensors::TemperatureDriver<'a> for SI7
     }
 }
 
-impl<'a, A: time::Alarm<'a>> kernel::hil::sensors::HumidityDriver<'a> for SI7021<'a, A> {
+impl<'a, A: time::Alarm<'a>, I: i2c::I2CDevice> kernel::hil::sensors::HumidityDriver<'a>
+    for SI7021<'a, A, I>
+{
     fn read_humidity(&self) -> Result<(), ErrorCode> {
         // This chip handles both humidity and temperature measurements. We can
         // only start a new measurement if the chip is idle. If it isn't then we
@@ -311,7 +315,7 @@ impl<'a, A: time::Alarm<'a>> kernel::hil::sensors::HumidityDriver<'a> for SI7021
     }
 }
 
-impl<'a, A: time::Alarm<'a>> time::AlarmClient for SI7021<'a, A> {
+impl<'a, A: time::Alarm<'a>, I: i2c::I2CDevice> time::AlarmClient for SI7021<'a, A, I> {
     fn alarm(&self) {
         self.buffer.take().map(|buffer| {
             // turn on i2c to send commands

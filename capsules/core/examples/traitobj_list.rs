@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! This example capsule illustrates how to create a `List`
 //! of trait objects
 //!
@@ -29,7 +33,7 @@ pub trait Funky<'a>: 'a {
 
 impl<'a> ListNode<'a, dyn Funky<'a>> for dyn Funky<'a> {
     fn next(&'a self) -> &'a ListLink<'a, dyn Funky<'a>> {
-        &self.next_funky_thing()
+        self.next_funky_thing()
     }
 }
 
@@ -61,7 +65,7 @@ pub struct Jazz<'a> {
     next: ListLink<'a, dyn Funky<'a>>,
 }
 
-impl<'a> Jazz<'a> {
+impl Jazz<'_> {
     pub fn new() -> Self {
         Jazz {
             next: ListLink::empty(),
@@ -84,7 +88,7 @@ pub struct Cheese<'a> {
     next: ListLink<'a, dyn Funky<'a>>,
 }
 
-impl<'a> Cheese<'a> {
+impl Cheese<'_> {
     pub fn new() -> Self {
         Cheese {
             next: ListLink::empty(),

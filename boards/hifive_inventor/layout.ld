@@ -1,3 +1,7 @@
+/* Licensed under the Apache License, Version 2.0 or the MIT License. */
+/* SPDX-License-Identifier: Apache-2.0 OR MIT                         */
+/* Copyright Tock Contributors 2023.                                  */
+
 /* The HiFive inventor board has 512 MiB of flash and 64 KiB of RAM.
  */
 
@@ -10,4 +14,4 @@ MEMORY
 
 MPU_MIN_ALIGN = 1K;
 
-INCLUDE ../kernel_layout.ld
+INCLUDE tock_kernel_layout.ld

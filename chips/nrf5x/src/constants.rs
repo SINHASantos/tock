@@ -1,4 +1,6 @@
-use core::convert::TryFrom;
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
 
 // PCNF0
 pub const RADIO_PCNF0_LFLEN_POS: u32 = 0;

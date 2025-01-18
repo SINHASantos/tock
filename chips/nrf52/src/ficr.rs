@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Factory Information Configuration Registers (FICR)
 //!
 //! Factory information configuration registers (FICR) are pre-programmed in
@@ -167,8 +171,16 @@ register_bitfields! [u32,
             ABBA = 0x41424241,
             /// AAD0
             AAD0 = 0x41414430,
+            /// AAD1
+            AAD1 = 0x41414431,
+            /// AADA
+            AADA = 0x41414441,
             /// AAE0
             AAE0 = 0x41414530,
+            /// AAEA
+            AAEA = 0x41414541,
+            /// AAF0
+            AAF0 = 0x41414630,
             /// BAAA
             BAAA = 0x42414141,
             /// CAAA
@@ -234,7 +246,7 @@ register_bitfields! [u32,
 /// Variant describes part variant, hardware version, and production configuration.
 #[derive(PartialEq, Debug)]
 #[repr(u32)]
-enum Variant {
+pub(crate) enum Variant {
     AAA0 = 0x41414130,
     AAAA = 0x41414141,
     AAAB = 0x41414142,
@@ -244,9 +256,13 @@ enum Variant {
     AAC0 = 0x41414330,
     AACA = 0x41414341,
     AACB = 0x41414342,
-    ABBA = 0x41424241,
     AAD0 = 0x41414430,
+    AAD1 = 0x41414431,
+    AADA = 0x41414441,
     AAE0 = 0x41414530,
+    AAEA = 0x41414541,
+    AAF0 = 0x41414630,
+    ABBA = 0x41424241,
     BAAA = 0x42414141,
     CAAA = 0x43414141,
     Unspecified = 0xffffffff,
@@ -306,7 +322,7 @@ pub struct Ficr {
 }
 
 impl Ficr {
-    const fn new() -> Ficr {
+    pub(crate) const fn new() -> Ficr {
         Ficr {
             registers: FICR_BASE,
         }
@@ -321,7 +337,9 @@ impl Ficr {
         }
     }
 
-    fn variant(&self) -> Variant {
+    pub(crate) fn variant(&self) -> Variant {
+        // If you update this, make sure to update
+        // `has_updated_approtect_logic()` as well.
         match self.registers.info_variant.get() {
             0x41414130 => Variant::AAA0,
             0x41414141 => Variant::AAAA,
@@ -334,10 +352,29 @@ impl Ficr {
             0x41414342 => Variant::AACB,
             0x41424241 => Variant::ABBA,
             0x41414430 => Variant::AAD0,
+            0x41414431 => Variant::AAD1,
+            0x41414441 => Variant::AADA,
             0x41414530 => Variant::AAE0,
+            0x41414541 => Variant::AAEA,
+            0x41414630 => Variant::AAF0,
             0x42414141 => Variant::BAAA,
             0x43414141 => Variant::CAAA,
             _ => Variant::Unspecified,
+        }
+    }
+
+    /// Returns if this variant of the nRF52 has the updated APPROTECT logic.
+    /// This changed occurred towards the end of 2021 with chips becoming widely
+    /// available/used in 2023.
+    ///
+    /// See <https://devzone.nordicsemi.com/nordic/nordic-blog/b/blog/posts/working-with-the-nrf52-series-improved-approtect>.
+    /// for more information.
+    pub(crate) fn has_updated_approtect_logic(&self) -> bool {
+        // We assume that an unspecified version means that it is new and this
+        // module hasn't been updated to recognize it.
+        match self.variant() {
+            Variant::AAF0 | Variant::Unspecified => true,
+            _ => false,
         }
     }
 
@@ -372,6 +409,15 @@ impl Ficr {
             0x800 => Flash::K2048,
             _ => Flash::Unspecified,
         }
+    }
+
+    pub fn id(&self) -> [u8; 8] {
+        let lo = self.registers.deviceid0.read(DeviceId0::DEVICEID);
+        let hi = self.registers.deviceid1.read(DeviceId1::DEVICEID);
+        let mut addr = [0; 8];
+        addr[..4].copy_from_slice(&lo.to_le_bytes());
+        addr[4..].copy_from_slice(&hi.to_le_bytes());
+        addr
     }
 
     pub fn address(&self) -> [u8; 6] {
@@ -412,31 +458,28 @@ impl Ficr {
             .deviceaddr1
             .read(DeviceAddress1::DEVICEADDRESS);
 
-        let h: [u8; 16] = [
-            '0' as u8, '1' as u8, '2' as u8, '3' as u8, '4' as u8, '5' as u8, '6' as u8, '7' as u8,
-            '8' as u8, '9' as u8, 'a' as u8, 'b' as u8, 'c' as u8, 'd' as u8, 'e' as u8, 'f' as u8,
-        ];
+        let h: [u8; 16] = *b"0123456789abcdef";
 
         buf[0] = h[((hi >> 12) & 0xf) as usize];
         buf[1] = h[((hi >> 8) & 0xf) as usize];
-        buf[2] = ':' as u8;
+        buf[2] = b':';
         buf[3] = h[((hi >> 4) & 0xf) as usize];
         buf[4] = h[((hi >> 0) & 0xf) as usize];
-        buf[5] = ':' as u8;
+        buf[5] = b':';
         buf[6] = h[((lo >> 28) & 0xf) as usize];
         buf[7] = h[((lo >> 24) & 0xf) as usize];
-        buf[8] = ':' as u8;
+        buf[8] = b':';
         buf[9] = h[((lo >> 20) & 0xf) as usize];
         buf[10] = h[((lo >> 16) & 0xf) as usize];
-        buf[11] = ':' as u8;
+        buf[11] = b':';
         buf[12] = h[((lo >> 12) & 0xf) as usize];
         buf[13] = h[((lo >> 8) & 0xf) as usize];
-        buf[14] = ':' as u8;
+        buf[14] = b':';
         buf[15] = h[((lo >> 4) & 0xf) as usize];
         buf[16] = h[((lo >> 0) & 0xf) as usize];
 
         // Safe because we use only ascii characters in this buffer.
-        unsafe { &*(buf as *const [u8] as *const str) }
+        unsafe { &*(core::ptr::from_ref::<[u8]>(buf) as *const str) }
     }
 }
 

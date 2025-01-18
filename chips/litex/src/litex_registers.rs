@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! LiteX register abstraction types
 //!
 //! LiteX is able to generate vastly different SoC with different
@@ -14,7 +18,7 @@
 //!
 //! The different register types of a specific SoC configuration are
 //! combined using a
-//! [`LiteXSoCRegisterConfiguration`](crate::litex_registers::LiteXSoCRegisterConfiguration)
+//! [`LiteXSoCRegisterConfiguration`]
 //! structure, which can be used to adapt the register interfaces of
 //! peripherals to the different configurations.
 //!

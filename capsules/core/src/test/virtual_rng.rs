@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Test virtual rng for a single device
 //! Gets a specified number of random numbers by making sequential calls to get()
 //! Full test harness for this can be found in nano33ble/test/virtual_rng_test
@@ -22,8 +26,8 @@ pub struct TestRng<'a> {
 impl<'a> TestRng<'a> {
     pub fn new(device_id: usize, device: &'a VirtualRngMasterDevice<'a>) -> TestRng<'a> {
         TestRng {
-            device_id: device_id,
-            device: device,
+            device_id,
+            device,
             num_requests: Cell::new(NUM_REQUESTS),
         }
     }
@@ -36,7 +40,7 @@ impl<'a> TestRng<'a> {
     }
 }
 
-impl<'a> Client for TestRng<'a> {
+impl Client for TestRng<'_> {
     fn randomness_available(
         &self,
         randomness: &mut dyn Iterator<Item = u32>,

@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Component for the MX25R6435F flash chip.
 //!
 //! Usage
@@ -52,8 +56,15 @@ macro_rules! mx25r6435f_component_static {
     };};
 }
 
+pub type Mx25r6435fComponentType<S, P, A> = capsules_extra::mx25r6435f::MX25R6435F<
+    'static,
+    capsules_core::virtualizers::virtual_spi::VirtualSpiMasterDevice<'static, S>,
+    P,
+    VirtualMuxAlarm<'static, A>,
+>;
+
 pub struct Mx25r6435fComponent<
-    S: 'static + hil::spi::SpiMaster,
+    S: 'static + hil::spi::SpiMaster<'static>,
     P: 'static + hil::gpio::Pin,
     A: 'static + hil::time::Alarm<'static>,
 > {
@@ -65,22 +76,22 @@ pub struct Mx25r6435fComponent<
 }
 
 impl<
-        S: 'static + hil::spi::SpiMaster,
+        S: 'static + hil::spi::SpiMaster<'static>,
         P: 'static + hil::gpio::Pin,
         A: 'static + hil::time::Alarm<'static>,
     > Mx25r6435fComponent<S, P, A>
 {
-    pub fn new(
+    pub fn new<CS: kernel::hil::spi::cs::IntoChipSelect<S::ChipSelect, hil::spi::cs::ActiveLow>>(
         write_protect_pin: Option<&'static P>,
         hold_pin: Option<&'static P>,
-        chip_select: S::ChipSelect,
+        chip_select: CS,
         mux_alarm: &'static MuxAlarm<'static, A>,
         mux_spi: &'static MuxSpiMaster<'static, S>,
     ) -> Mx25r6435fComponent<S, P, A> {
         Mx25r6435fComponent {
             write_protect_pin,
             hold_pin,
-            chip_select,
+            chip_select: chip_select.into_cs(),
             mux_alarm,
             mux_spi,
         }
@@ -88,7 +99,7 @@ impl<
 }
 
 impl<
-        S: 'static + hil::spi::SpiMaster,
+        S: 'static + hil::spi::SpiMaster<'static>,
         P: 'static + hil::gpio::Pin,
         A: 'static + hil::time::Alarm<'static>,
     > Component for Mx25r6435fComponent<S, P, A>

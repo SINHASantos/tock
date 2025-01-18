@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Implementation of the SAM4L TWIMS peripheral.
 //!
 //! The implementation, especially of repeated starts, is quite sensitive to the
@@ -544,15 +548,15 @@ impl ClockInterface for TWISClock {
 }
 
 /// Abstraction of the I2C hardware
-pub struct I2CHw {
+pub struct I2CHw<'a> {
     master_mmio_address: StaticRef<TWIMRegisters>,
     slave_mmio_address: Option<StaticRef<TWISRegisters>>,
     master_clock: TWIMClock,
     slave_clock: TWISClock,
     dma: OptionalCell<&'static DMAChannel>,
     dma_pids: (DMAPeripheral, DMAPeripheral),
-    master_client: Cell<Option<&'static dyn hil::i2c::I2CHwMasterClient>>,
-    slave_client: Cell<Option<&'static dyn hil::i2c::I2CHwSlaveClient>>,
+    master_client: Cell<Option<&'a dyn hil::i2c::I2CHwMasterClient>>,
+    slave_client: Cell<Option<&'a dyn hil::i2c::I2CHwSlaveClient>>,
     on_deck: Cell<Option<(DMAPeripheral, usize)>>,
 
     slave_enabled: Cell<bool>,
@@ -566,11 +570,11 @@ pub struct I2CHw {
     pm: &'static pm::PowerManager,
 }
 
-impl PeripheralManagement<TWIMClock> for I2CHw {
+impl PeripheralManagement<TWIMClock> for I2CHw<'_> {
     type RegisterType = TWIMRegisters;
 
     fn get_registers(&self) -> &TWIMRegisters {
-        &*self.master_mmio_address
+        &self.master_mmio_address
     }
 
     fn get_clock(&self) -> &TWIMClock {
@@ -578,7 +582,7 @@ impl PeripheralManagement<TWIMClock> for I2CHw {
     }
 
     fn before_peripheral_access(&self, clock: &TWIMClock, _: &TWIMRegisters) {
-        if clock.is_enabled() == false {
+        if !clock.is_enabled() {
             clock.enable();
         }
     }
@@ -591,13 +595,13 @@ impl PeripheralManagement<TWIMClock> for I2CHw {
         }
     }
 }
-type TWIMRegisterManager<'a> = PeripheralManager<'a, I2CHw, TWIMClock>;
+type TWIMRegisterManager<'a, 'm> = PeripheralManager<'m, I2CHw<'a>, TWIMClock>;
 
-impl PeripheralManagement<TWISClock> for I2CHw {
+impl PeripheralManagement<TWISClock> for I2CHw<'_> {
     type RegisterType = TWISRegisters;
 
-    fn get_registers<'a>(&'a self) -> &'a TWISRegisters {
-        &*self.slave_mmio_address.as_ref().unwrap() // Unwrap fail = Access of non-existent slave
+    fn get_registers(&self) -> &TWISRegisters {
+        self.slave_mmio_address.as_ref().unwrap() // Unwrap fail = Access of non-existent slave
     }
 
     fn get_clock(&self) -> &TWISClock {
@@ -605,7 +609,7 @@ impl PeripheralManagement<TWISClock> for I2CHw {
     }
 
     fn before_peripheral_access(&self, clock: &TWISClock, _: &TWISRegisters) {
-        if clock.is_enabled() == false {
+        if !clock.is_enabled() {
             clock.enable();
         }
     }
@@ -618,7 +622,7 @@ impl PeripheralManagement<TWISClock> for I2CHw {
         }
     }
 }
-type TWISRegisterManager<'a> = PeripheralManager<'a, I2CHw, TWISClock>;
+type TWISRegisterManager<'a, 'm> = PeripheralManager<'m, I2CHw<'a>, TWISClock>;
 
 const fn create_twims_clocks(
     master: pm::Clock,
@@ -629,7 +633,7 @@ const fn create_twims_clocks(
 
 // Need to implement the `new` function on the I2C device as a constructor.
 // This gets called from the device tree.
-impl I2CHw {
+impl<'a> I2CHw<'a> {
     fn new(
         base_addr: StaticRef<TWIMRegisters>,
         slave_base_addr: Option<StaticRef<TWISRegisters>>,
@@ -637,7 +641,7 @@ impl I2CHw {
         dma_rx: DMAPeripheral,
         dma_tx: DMAPeripheral,
         pm: &'static pm::PowerManager,
-    ) -> I2CHw {
+    ) -> I2CHw<'a> {
         I2CHw {
             master_mmio_address: base_addr,
             slave_mmio_address: slave_base_addr,
@@ -749,7 +753,7 @@ impl I2CHw {
 
     pub fn handle_interrupt(&self) {
         let old_status = {
-            let twim = &TWIMRegisterManager::new(&self);
+            let twim = &TWIMRegisterManager::new(self);
 
             let old_status = twim.registers.sr.extract();
 
@@ -785,7 +789,7 @@ impl I2CHw {
         match on_deck {
             None => {
                 {
-                    let twim = &TWIMRegisterManager::new(&self);
+                    let twim = &TWIMRegisterManager::new(self);
 
                     twim.registers.cmdr.set(0);
                     twim.registers.ncmdr.set(0);
@@ -822,7 +826,7 @@ impl I2CHw {
                 // and call this I2C command complete.
                 if (len == 1) && old_status.is_set(Status::TXRDY) {
                     let the_byte = {
-                        let twim = &TWIMRegisterManager::new(&self);
+                        let twim = &TWIMRegisterManager::new(self);
 
                         twim.registers.cmdr.set(0);
                         twim.registers.ncmdr.set(0);
@@ -854,7 +858,7 @@ impl I2CHw {
                     });
                 } else {
                     {
-                        let twim = &TWIMRegisterManager::new(&self);
+                        let twim = &TWIMRegisterManager::new(self);
                         // Enable transaction error interrupts
                         twim.registers.ier.write(
                             Interrupt::CCOMP::SET
@@ -938,11 +942,11 @@ impl I2CHw {
         data: &'static mut [u8],
         len: usize,
     ) -> Result<(), (hil::i2c::Error, &'static mut [u8])> {
-        let twim = &TWIMRegisterManager::new(&self);
+        let twim = &TWIMRegisterManager::new(self);
         if self.dma.is_some() {
             self.dma.map(move |dma| {
                 dma.enable();
-                dma.prepare_transfer(self.dma_pids.1, data, len as usize);
+                dma.prepare_transfer(self.dma_pids.1, data, len);
                 self.setup_transfer(twim, chip, flags, Command::READ::Transmit, len);
                 self.master_enable(twim);
                 dma.start_transfer();
@@ -960,11 +964,11 @@ impl I2CHw {
         data: &'static mut [u8],
         len: usize,
     ) -> Result<(), (hil::i2c::Error, &'static mut [u8])> {
-        let twim = &TWIMRegisterManager::new(&self);
+        let twim = &TWIMRegisterManager::new(self);
         if self.dma.is_some() {
             self.dma.map(move |dma| {
                 dma.enable();
-                dma.prepare_transfer(self.dma_pids.0, data, len as usize);
+                dma.prepare_transfer(self.dma_pids.0, data, len);
                 self.setup_transfer(twim, chip, flags, Command::READ::Receive, len);
                 self.master_enable(twim);
                 dma.start_transfer();
@@ -982,11 +986,11 @@ impl I2CHw {
         split: usize,
         read_len: usize,
     ) -> Result<(), (hil::i2c::Error, &'static mut [u8])> {
-        let twim = &TWIMRegisterManager::new(&self);
+        let twim = &TWIMRegisterManager::new(self);
         if self.dma.is_some() {
             self.dma.map(move |dma| {
                 dma.enable();
-                dma.prepare_transfer(self.dma_pids.1, data, split as usize);
+                dma.prepare_transfer(self.dma_pids.1, data, split);
                 self.setup_transfer(
                     twim,
                     chip,
@@ -1001,7 +1005,7 @@ impl I2CHw {
                     Command::READ::Receive,
                     read_len,
                 );
-                self.on_deck.set(Some((self.dma_pids.0, read_len as usize)));
+                self.on_deck.set(Some((self.dma_pids.0, read_len)));
                 dma.start_transfer();
             });
             Ok(())
@@ -1017,7 +1021,7 @@ impl I2CHw {
     /// Handle possible interrupt for TWIS module.
     pub fn handle_slave_interrupt(&self) {
         if self.slave_mmio_address.is_some() {
-            let twis = &TWISRegisterManager::new(&self);
+            let twis = &TWISRegisterManager::new(self);
 
             // Get current status from the hardware.
             let status = twis.registers.sr.extract();
@@ -1148,8 +1152,7 @@ impl I2CHw {
 
                         if len > idx {
                             self.slave_write_buffer.map(|buffer| {
-                                buffer[idx as usize] =
-                                    twis.registers.rhr.read(ReceiveHolding::RXDATA) as u8;
+                                buffer[idx] = twis.registers.rhr.read(ReceiveHolding::RXDATA) as u8;
                             });
                             self.slave_write_buffer_index.set(idx + 1);
                         } else {
@@ -1178,9 +1181,9 @@ impl I2CHw {
 
                         if len > idx {
                             self.slave_read_buffer.map(|buffer| {
-                                twis.registers.thr.write(
-                                    TransmitHolding::TXDATA.val(buffer[idx as usize] as u32),
-                                );
+                                twis.registers
+                                    .thr
+                                    .write(TransmitHolding::TXDATA.val(buffer[idx] as u32));
                             });
                             self.slave_read_buffer_index.set(idx + 1);
                         } else {
@@ -1214,7 +1217,7 @@ impl I2CHw {
 
                             if len > idx {
                                 self.slave_write_buffer.map(|buffer| {
-                                    buffer[idx as usize] =
+                                    buffer[idx] =
                                         twis.registers.rhr.read(ReceiveHolding::RXDATA) as u8;
                                 });
                                 self.slave_write_buffer_index.set(idx + 1);
@@ -1247,7 +1250,7 @@ impl I2CHw {
             if self.slave_mmio_address.is_some() {
                 self.slave_write_buffer.replace(buffer);
                 self.slave_write_buffer_len.set(len);
-                let twis = &TWISRegisterManager::new(&self);
+                let twis = &TWISRegisterManager::new(self);
 
                 let status = twis.registers.sr.extract();
                 let imr = twis.registers.imr.extract();
@@ -1278,7 +1281,7 @@ impl I2CHw {
                 self.slave_read_buffer.replace(buffer);
                 self.slave_read_buffer_len.set(len);
                 self.slave_read_buffer_index.set(0);
-                let twis = &TWISRegisterManager::new(&self);
+                let twis = &TWISRegisterManager::new(self);
 
                 // Check to see if we should send the first byte.
                 let status = twis.registers.sr.extract();
@@ -1327,7 +1330,7 @@ impl I2CHw {
 
     fn slave_listen(&self) {
         if self.slave_mmio_address.is_some() {
-            let twis = &TWISRegisterManager::new(&self);
+            let twis = &TWISRegisterManager::new(self);
 
             // Enable and configure
             let control = ControlSlave::ADR.val((self.my_slave_address.get() as u32) & 0x7F)
@@ -1343,12 +1346,12 @@ impl I2CHw {
     }
 }
 
-impl DMAClient for I2CHw {
+impl DMAClient for I2CHw<'_> {
     fn transfer_done(&self, _pid: DMAPeripheral) {}
 }
 
-impl hil::i2c::I2CMaster for I2CHw {
-    fn set_master_client(&self, client: &'static dyn hil::i2c::I2CHwMasterClient) {
+impl<'a> hil::i2c::I2CMaster<'a> for I2CHw<'a> {
+    fn set_master_client(&self, client: &'a dyn hil::i2c::I2CHwMasterClient) {
         self.master_client.set(Some(client));
     }
     /// This enables the entire I2C peripheral
@@ -1356,7 +1359,7 @@ impl hil::i2c::I2CMaster for I2CHw {
         //disable the i2c slave peripheral
         hil::i2c::I2CSlave::disable(self);
 
-        let twim = &TWIMRegisterManager::new(&self);
+        let twim = &TWIMRegisterManager::new(self);
 
         // enable, reset, disable
         twim.registers.cr.write(Control::MEN::SET);
@@ -1379,7 +1382,7 @@ impl hil::i2c::I2CMaster for I2CHw {
 
     /// This disables the entire I2C peripheral
     fn disable(&self) {
-        let twim = &TWIMRegisterManager::new(&self);
+        let twim = &TWIMRegisterManager::new(self);
         twim.registers.cr.write(Control::MDIS::SET);
         self.disable_interrupts(twim);
     }
@@ -1425,13 +1428,13 @@ impl hil::i2c::I2CMaster for I2CHw {
     }
 }
 
-impl hil::i2c::I2CSlave for I2CHw {
-    fn set_slave_client(&self, client: &'static dyn hil::i2c::I2CHwSlaveClient) {
+impl<'a> hil::i2c::I2CSlave<'a> for I2CHw<'a> {
+    fn set_slave_client(&self, client: &'a dyn hil::i2c::I2CHwSlaveClient) {
         self.slave_client.set(Some(client));
     }
     fn enable(&self) {
         if self.slave_mmio_address.is_some() {
-            let twis = &TWISRegisterManager::new(&self);
+            let twis = &TWISRegisterManager::new(self);
 
             // enable, reset, disable
             twis.registers.cr.write(ControlSlave::SEN::SET);
@@ -1469,7 +1472,7 @@ impl hil::i2c::I2CSlave for I2CHw {
         self.slave_enabled.set(false);
 
         if self.slave_mmio_address.is_some() {
-            let twis = &TWISRegisterManager::new(&self);
+            let twis = &TWISRegisterManager::new(self);
             twis.registers.cr.set(0);
             self.slave_disable_interrupts(twis);
         }

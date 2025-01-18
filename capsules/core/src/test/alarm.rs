@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Test that an Alarm implementation is working. Depends on a working
 //! UART and debug! macro.
 //!
@@ -15,7 +19,7 @@ pub struct TestAlarm<'a, A: Alarm<'a>> {
 impl<'a, A: Alarm<'a>> TestAlarm<'a, A> {
     pub fn new(alarm: &'a A) -> TestAlarm<'a, A> {
         TestAlarm {
-            alarm: alarm,
+            alarm,
             ms: Cell::new(0),
         }
     }

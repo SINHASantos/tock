@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Components for the FM25CL FRAM chip.
 //!
 //! Uses a SPI Interface.
@@ -36,24 +40,32 @@ macro_rules! fm25cl_component_static {
     };};
 }
 
-pub struct Fm25clComponent<S: 'static + spi::SpiMaster> {
+pub struct Fm25clComponent<
+    S: 'static + spi::SpiMaster<'static>,
+    CS: spi::cs::IntoChipSelect<S::ChipSelect, spi::cs::ActiveLow>,
+> {
     spi_mux: &'static MuxSpiMaster<'static, S>,
-    chip_select: S::ChipSelect,
+    chip_select: CS,
 }
 
-impl<S: 'static + spi::SpiMaster> Fm25clComponent<S> {
-    pub fn new(
-        spi_mux: &'static MuxSpiMaster<'static, S>,
-        chip_select: S::ChipSelect,
-    ) -> Fm25clComponent<S> {
-        Fm25clComponent {
+impl<
+        S: 'static + spi::SpiMaster<'static>,
+        CS: spi::cs::IntoChipSelect<S::ChipSelect, spi::cs::ActiveLow>,
+    > Fm25clComponent<S, CS>
+{
+    pub fn new(spi_mux: &'static MuxSpiMaster<'static, S>, chip_select: CS) -> Self {
+        Self {
             spi_mux,
             chip_select,
         }
     }
 }
 
-impl<S: 'static + spi::SpiMaster> Component for Fm25clComponent<S> {
+impl<
+        S: 'static + spi::SpiMaster<'static>,
+        CS: spi::cs::IntoChipSelect<S::ChipSelect, spi::cs::ActiveLow>,
+    > Component for Fm25clComponent<S, CS>
+{
     type StaticInput = (
         &'static mut MaybeUninit<VirtualSpiMasterDevice<'static, S>>,
         &'static mut MaybeUninit<FM25CL<'static, VirtualSpiMasterDevice<'static, S>>>,
@@ -63,9 +75,10 @@ impl<S: 'static + spi::SpiMaster> Component for Fm25clComponent<S> {
     type Output = &'static FM25CL<'static, VirtualSpiMasterDevice<'static, S>>;
 
     fn finalize(self, static_buffer: Self::StaticInput) -> Self::Output {
-        let spi_device = static_buffer
-            .0
-            .write(VirtualSpiMasterDevice::new(self.spi_mux, self.chip_select));
+        let spi_device = static_buffer.0.write(VirtualSpiMasterDevice::new(
+            self.spi_mux,
+            self.chip_select.into_cs(),
+        ));
         spi_device.setup();
 
         let txbuffer = static_buffer.2.write([0; capsules_extra::fm25cl::BUF_LEN]);

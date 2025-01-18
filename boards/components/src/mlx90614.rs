@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! Components for the MLX90614 IR Temperature Sensor.
 //!
 //! Usage
@@ -20,6 +24,7 @@ use core::mem::MaybeUninit;
 use kernel::capabilities;
 use kernel::component::Component;
 use kernel::create_capability;
+use kernel::hil::i2c::{self, NoSMBus};
 
 // Setup static space for the objects.
 #[macro_export]
@@ -33,36 +38,43 @@ macro_rules! mlx90614_component_static {
     };};
 }
 
-pub struct Mlx90614SMBusComponent {
-    i2c_mux: &'static MuxI2C<'static>,
+pub struct Mlx90614SMBusComponent<
+    I: 'static + i2c::I2CMaster<'static>,
+    S: 'static + i2c::SMBusMaster<'static> = NoSMBus,
+> {
+    i2c_mux: &'static MuxI2C<'static, I, S>,
     i2c_address: u8,
     board_kernel: &'static kernel::Kernel,
     driver_num: usize,
 }
 
-impl Mlx90614SMBusComponent {
+impl<I: 'static + i2c::I2CMaster<'static>, S: 'static + i2c::SMBusMaster<'static>>
+    Mlx90614SMBusComponent<I, S>
+{
     pub fn new(
-        i2c: &'static MuxI2C<'static>,
+        i2c: &'static MuxI2C<'static, I, S>,
         i2c_address: u8,
         board_kernel: &'static kernel::Kernel,
         driver_num: usize,
     ) -> Self {
         Mlx90614SMBusComponent {
             i2c_mux: i2c,
-            i2c_address: i2c_address,
+            i2c_address,
             board_kernel,
             driver_num,
         }
     }
 }
 
-impl Component for Mlx90614SMBusComponent {
+impl<I: 'static + i2c::I2CMaster<'static>, S: 'static + i2c::SMBusMaster<'static>> Component
+    for Mlx90614SMBusComponent<I, S>
+{
     type StaticInput = (
-        &'static mut MaybeUninit<SMBusDevice<'static>>,
+        &'static mut MaybeUninit<SMBusDevice<'static, I, S>>,
         &'static mut MaybeUninit<[u8; 14]>,
-        &'static mut MaybeUninit<Mlx90614SMBus<'static>>,
+        &'static mut MaybeUninit<Mlx90614SMBus<'static, SMBusDevice<'static, I, S>>>,
     );
-    type Output = &'static Mlx90614SMBus<'static>;
+    type Output = &'static Mlx90614SMBus<'static, SMBusDevice<'static, I, S>>;
 
     fn finalize(self, static_buffer: Self::StaticInput) -> Self::Output {
         let mlx90614_smbus = static_buffer

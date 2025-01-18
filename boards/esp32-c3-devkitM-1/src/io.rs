@@ -1,5 +1,10 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 use core::fmt::Write;
 use core::panic::PanicInfo;
+use core::ptr::addr_of;
 use core::str;
 use kernel::debug;
 use kernel::debug::IoWrite;
@@ -20,11 +25,12 @@ impl Write for Writer {
 }
 
 impl IoWrite for Writer {
-    fn write(&mut self, buf: &[u8]) {
+    fn write(&mut self, buf: &[u8]) -> usize {
         let uart = esp32::uart::Uart::new(esp32::uart::UART0_BASE);
         uart.disable_tx_interrupt();
         uart.disable_rx_interrupt();
         uart.transmit_sync(buf);
+        buf.len()
     }
 }
 
@@ -32,12 +38,14 @@ impl IoWrite for Writer {
 #[cfg(not(test))]
 #[no_mangle]
 #[panic_handler]
-pub unsafe extern "C" fn panic_fmt(pi: &PanicInfo) -> ! {
-    let writer = &mut WRITER;
+pub unsafe fn panic_fmt(pi: &PanicInfo) -> ! {
+    use core::ptr::addr_of_mut;
+
+    let writer = &mut *addr_of_mut!(WRITER);
 
     debug::panic_banner(writer, pi);
-    debug::panic_cpu_state(&CHIP, writer);
-    debug::panic_process_info(&PROCESSES, &PROCESS_PRINTER, writer);
+    debug::panic_cpu_state(&*addr_of!(CHIP), writer);
+    debug::panic_process_info(&*addr_of!(PROCESSES), &*addr_of!(PROCESS_PRINTER), writer);
 
     loop {
         rv32i::support::nop();
@@ -47,16 +55,18 @@ pub unsafe extern "C" fn panic_fmt(pi: &PanicInfo) -> ! {
 #[cfg(test)]
 #[no_mangle]
 #[panic_handler]
-pub unsafe extern "C" fn panic_fmt(pi: &PanicInfo) -> ! {
-    let writer = &mut WRITER;
+pub unsafe fn panic_fmt(pi: &PanicInfo) -> ! {
+    use core::ptr::addr_of_mut;
+
+    let writer = &mut *addr_of_mut!(WRITER);
 
     debug::panic_print(
         writer,
         pi,
         &rv32i::support::nop,
-        &PROCESSES,
-        &CHIP,
-        &PROCESS_PRINTER,
+        &*addr_of!(PROCESSES),
+        &*addr_of!(CHIP),
+        &*addr_of!(PROCESS_PRINTER),
     );
 
     let _ = writeln!(writer, "{}", pi);

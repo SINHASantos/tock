@@ -1,3 +1,7 @@
+// Licensed under the Apache License, Version 2.0 or the MIT License.
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright Tock Contributors 2022.
+
 //! SyscallDriver for the FT6x06 Touch Panel.
 //!
 //! I2C Interface
@@ -7,7 +11,7 @@
 //! Usage
 //! -----
 //!
-//! ```rust
+//! ```rust,ignore
 //! let mux_i2c = components::i2c::I2CMuxComponent::new(&stm32f4xx::i2c::I2C1)
 //!     .finalize(components::i2c_mux_component_helper!());
 //!
@@ -46,8 +50,8 @@ enum_from_primitive! {
     }
 }
 
-pub struct Ft6x06<'a> {
-    i2c: &'a dyn i2c::I2CDevice,
+pub struct Ft6x06<'a, I: i2c::I2CDevice> {
+    i2c: &'a I,
     interrupt_pin: &'a dyn gpio::InterruptPin<'a>,
     touch_client: OptionalCell<&'a dyn touch::TouchClient>,
     gesture_client: OptionalCell<&'a dyn touch::GestureClient>,
@@ -57,18 +61,18 @@ pub struct Ft6x06<'a> {
     events: TakeCell<'static, [TouchEvent]>,
 }
 
-impl<'a> Ft6x06<'a> {
+impl<'a, I: i2c::I2CDevice> Ft6x06<'a, I> {
     pub fn new(
-        i2c: &'a dyn i2c::I2CDevice,
+        i2c: &'a I,
         interrupt_pin: &'a dyn gpio::InterruptPin<'a>,
         buffer: &'static mut [u8],
         events: &'static mut [TouchEvent],
-    ) -> Ft6x06<'a> {
+    ) -> Ft6x06<'a, I> {
         // setup and return struct
         interrupt_pin.enable_interrupts(gpio::InterruptEdge::FallingEdge);
         Ft6x06 {
-            i2c: i2c,
-            interrupt_pin: interrupt_pin,
+            i2c,
+            interrupt_pin,
             touch_client: OptionalCell::empty(),
             gesture_client: OptionalCell::empty(),
             multi_touch_client: OptionalCell::empty(),
@@ -79,7 +83,7 @@ impl<'a> Ft6x06<'a> {
     }
 }
 
-impl<'a> i2c::I2CClient for Ft6x06<'a> {
+impl<I: i2c::I2CDevice> i2c::I2CClient for Ft6x06<'_, I> {
     fn command_complete(&self, buffer: &'static mut [u8], _status: Result<(), i2c::Error>) {
         self.num_touches.set((buffer[1] & 0x0F) as usize);
         self.touch_client.map(|client| {
@@ -146,11 +150,11 @@ impl<'a> i2c::I2CClient for Ft6x06<'a> {
                                 x,
                                 y,
                                 id,
-                                pressure,
                                 size,
+                                pressure,
                             };
                         });
-                        num_touches = num_touches + 1;
+                        num_touches += 1;
                     }
                 }
                 self.events.map(|buffer| {
@@ -164,7 +168,7 @@ impl<'a> i2c::I2CClient for Ft6x06<'a> {
     }
 }
 
-impl<'a> gpio::Client for Ft6x06<'a> {
+impl<I: i2c::I2CDevice> gpio::Client for Ft6x06<'_, I> {
     fn fired(&self) {
         self.buffer.take().map(|buffer| {
             self.interrupt_pin.disable_interrupts();
@@ -183,7 +187,7 @@ impl<'a> gpio::Client for Ft6x06<'a> {
     }
 }
 
-impl<'a> touch::Touch<'a> for Ft6x06<'a> {
+impl<'a, I: i2c::I2CDevice> touch::Touch<'a> for Ft6x06<'a, I> {
     fn enable(&self) -> Result<(), ErrorCode> {
         Ok(())
     }
@@ -197,13 +201,13 @@ impl<'a> touch::Touch<'a> for Ft6x06<'a> {
     }
 }
 
-impl<'a> touch::Gesture<'a> for Ft6x06<'a> {
+impl<'a, I: i2c::I2CDevice> touch::Gesture<'a> for Ft6x06<'a, I> {
     fn set_client(&self, client: &'a dyn touch::GestureClient) {
         self.gesture_client.replace(client);
     }
 }
 
-impl<'a> touch::MultiTouch<'a> for Ft6x06<'a> {
+impl<'a, I: i2c::I2CDevice> touch::MultiTouch<'a> for Ft6x06<'a, I> {
     fn enable(&self) -> Result<(), ErrorCode> {
         Ok(())
     }

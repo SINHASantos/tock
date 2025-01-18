@@ -1,8 +1,8 @@
-# Makefile for building the tock kernel for the Arduino Nano 33 BLE board.
+# Licensed under the Apache License, Version 2.0 or the MIT License.
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+# Copyright Tock Contributors 2022.
 
-TOCK_ARCH=cortex-m4
-TARGET=thumbv7em-none-eabi
-PLATFORM=nano33ble
+# Makefile for building the tock kernel for the Arduino Nano 33 BLE board.
 
 include ../Makefile.common
 
